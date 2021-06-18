@@ -21,7 +21,7 @@ enum GPUPatchFlags {
 };
 
 
-typedef struct gpu_patch_record {
+typedef struct gpu_mem_access_record {
     uint64_t pc;
     uint32_t size;
     uint32_t active;
@@ -33,7 +33,7 @@ typedef struct gpu_patch_record {
 } gpu_patch_record_t;
 
 
-typedef struct gpu_patch_buffer {
+typedef struct gpu_mem_access_buffer {
     volatile uint32_t full;
     volatile uint32_t head_index;
     volatile uint32_t tail_index;

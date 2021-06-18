@@ -219,3 +219,60 @@ sanitizer_block_enter_callback
 }
 
 
+extern "C"
+__device__ __noinline__
+SanitizerPatchResult
+sanitizer_instr_call_callback(void *user_data,  uint64_t pc, uint64_t targetPc, uint32_t flags){
+    gpu_buffer_t * buffer = (gpu_buffer_t *)user_data;
+
+
+    uint32_t active_mask = __activemask();
+    uint32_t laneid = get_laneid();
+    uint32_t first_laneid = __ffs(active_mask) - 1;
+//    @todo is this correct for whose cct depth is over 2?
+// @todo when there are thread divergence, we need to add more information.
+    if (get_flat_block_id() == 0 && laneid == first_laneid) {
+        uint32_t cur_index = atomicAdd(&(buffer->current_cct_index), 1);;
+//        @todo for test, only store to the first slot.
+        gpu_cct_record_t& record = buffer->gpu_cct_records[cur_index];
+        record.pc = pc;
+        record.target_pc = targetPc;
+        record.sanitizer_flag = flags;
+        record.flag = GPU_PATCH_FUNCTION_CALL;
+    }
+    __syncwarp(active_mask);
+    return SANITIZER_PATCH_SUCCESS;
+}
+
+extern "C"
+__device__ __noinline__
+SanitizerPatchResult
+sanitizer_instr_ret_callback
+        (
+                void *user_data,
+                uint64_t pc
+        )
+{
+    gpu_buffer_t * buffer = (gpu_buffer_t *)user_data;
+
+    uint32_t active_mask = __activemask();
+    uint32_t laneid = get_laneid();
+    uint32_t first_laneid = __ffs(active_mask) - 1;
+//    @todo is this correct for whose cct depth is over 2?
+// @todo when there are thread divergence, we need to add more information.
+    if (get_flat_block_id() == 0 && laneid == first_laneid) {
+        uint32_t cur_index = atomicAdd(&(buffer->current_cct_index), 1);;
+//        @todo for test, only store to the first slot.
+        gpu_cct_record_t& record = buffer->gpu_cct_records[cur_index];
+        record.pc = pc;
+        record.target_pc = 0;
+        record.sanitizer_flag = 0;
+        record.flag = GPU_PATCH_FUNCTION_RET;
+    }
+    __syncwarp(active_mask);
+    return SANITIZER_PATCH_SUCCESS;
+}
+
+//__global__ void gpupunk_insert_kernel_launch(){
+//
+//}

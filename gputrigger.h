@@ -43,6 +43,9 @@ struct MemoryAccessTracker
     MemoryAccess* accesses;
 };
 
+struct gpu_cct_node{
+
+};
 
 #define GPUTRIGGER_GPUTRIGGER_H
 
