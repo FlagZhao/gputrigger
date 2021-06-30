@@ -273,6 +273,3 @@ sanitizer_instr_ret_callback
     return SANITIZER_PATCH_SUCCESS;
 }
 
-//__global__ void gpupunk_insert_kernel_launch(){
-//
-//}

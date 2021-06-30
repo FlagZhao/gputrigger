@@ -11,7 +11,7 @@
 
 #include <vector_types.h>
 
-void sanitizer_load_callback(CUcontext context,
+static void sanitizer_load_callback(CUcontext context,
                              CUmodule module,
                              const void *cubin,
                              size_t cubin_size);
@@ -43,9 +43,9 @@ struct MemoryAccessTracker
     MemoryAccess* accesses;
 };
 
-struct gpu_cct_node{
 
-};
+static Sanitizer_StreamHandle sanitizer_priority_stream_get(CUcontext context);
+void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size);
 
 #define GPUTRIGGER_GPUTRIGGER_H
 

@@ -6,7 +6,9 @@
 
 #define GPU_PATCH_MAX_ACCESS_SIZE (16)
 #define GPU_PATCH_WARP_SIZE (32)
-
+#define GPU_PATCH_ANALYSIS_THREADS (1024)
+#define GPU_PATCH_ANALYSIS_ITEMS (4)
+#define GPU_PATCH_ADDRESS_DICT_SIZE (1024)
 
 enum GPUPatchFlags {
     GPU_PATCH_NONE = 0,
@@ -17,11 +19,20 @@ enum GPUPatchFlags {
     GPU_PATCH_SHARED = 0x10,
     GPU_PATCH_BLOCK_ENTER_FLAG = 0x20,
     GPU_PATCH_BLOCK_EXIT_FLAG = 0x40,
-    GPU_PATCH_FUNCTION_CALL = 0x80,
-    GPU_PATCH_FUNCTION_RET = 0x100,
+    GPU_PATCH_ANALYSIS = 0x80,
+    GPU_PATCH_FUNCTION_CALL = 0x100,
+    GPU_PATCH_FUNCTION_RET = 0x200,
 };
 
+enum GPUPatchType {
+    GPU_PATCH_TYPE_DEFAULT = 0,
+    GPU_PATCH_TYPE_ADDRESS_PATCH = 1,
+    GPU_PATCH_TYPE_ADDRESS_ANALYSIS = 2,
+    GPU_PATCH_TYPE_COUNT = 3,
+    GPU_PATCH_CCT = 4
+};
 
+// Complete record, gpu_patch_record in gvprof
 typedef struct gpu_mem_access_record {
     uint64_t pc;
     uint32_t size;
@@ -30,66 +41,10 @@ typedef struct gpu_mem_access_record {
     uint32_t flat_block_id;
     uint64_t address[GPU_PATCH_WARP_SIZE];
     uint8_t value[GPU_PATCH_WARP_SIZE][GPU_PATCH_MAX_ACCESS_SIZE];  // STS.128->16 bytes
-    GPUPatchFlags flags;
+//    GPUPatchFlags flags;
+    uint32_t flags;
 } gpu_mem_access_record_t;
 
-
-typedef struct gpu_mem_access_buffer {
-    volatile uint32_t full;
-    volatile uint32_t head_index;
-    volatile uint32_t tail_index;
-    uint32_t size;
-    uint32_t num_threads;  // If num_threads == 0, the kernel is finished
-    uint32_t block_sampling_offset;
-    uint32_t block_sampling_frequency;
-    gpu_mem_access_record_t *records;
-} gpu_mem_access_buffer_t;
-
-typedef struct gpu_cct_record {
-    uint64_t pc;
-    uint64_t target_pc;
-    uint32_t sanitizer_flag;
-    GPUPatchFlags flag;
-} gpu_cct_record_t;
-
-typedef struct gpu_buffer {
-    uint32_t current_cct_index;
-    gpu_cct_record_t *gpu_cct_records;
-    uint32_t current_mem_access_index;
-    gpu_mem_access_buffer_t *gpu_mem_access_buffer;
-} gpu_buffer_t;
-
-
-
-
-
-
-
-typedef struct gpu_patch_buffer {
-    volatile uint32_t full;
-    volatile uint32_t analysis;
-    volatile uint32_t head_index;
-    volatile uint32_t tail_index;
-    uint32_t size;
-    uint32_t num_threads;  // If num_threads == 0, the kernel is finished
-    uint32_t block_sampling_offset;
-    uint32_t block_sampling_frequency;
-    uint32_t type;
-    uint32_t flags;  // read or write or both
-    void *records;
-    void *aux;
-} gpu_patch_buffer_t;
-// Complete record
-typedef struct gpu_patch_record {
-    uint64_t pc;
-    uint32_t size;
-    uint32_t active;
-    uint32_t flat_thread_id;
-    uint32_t flat_block_id;
-    uint32_t flags;
-    uint64_t address[GPU_PATCH_WARP_SIZE];
-    uint8_t value[GPU_PATCH_WARP_SIZE][GPU_PATCH_MAX_ACCESS_SIZE];  // STS.128->16 bytes
-} gpu_patch_record_t;
 
 // Address only
 typedef struct gpu_patch_record_address {
@@ -105,5 +60,33 @@ typedef struct gpu_patch_analysis_address {
     uint64_t end;
 } gpu_patch_analysis_address_t;
 
+// Auxiliary data
+typedef struct gpu_patch_aux_address_dict {
+    uint32_t size;
+    gpu_patch_analysis_address_t start_end[GPU_PATCH_ADDRESS_DICT_SIZE];
+    uint32_t hit[GPU_PATCH_ADDRESS_DICT_SIZE];
+} gpu_patch_aux_address_dict_t;
+
+// CCT data
+typedef struct gpu_cct_record {
+    uint64_t pc;
+    uint64_t target_pc;
+    uint32_t flag;
+} gpu_cct_record_t;
+
+typedef struct gpu_patch_buffer {
+    volatile uint32_t full;
+    volatile uint32_t analysis;
+    volatile uint32_t head_index;
+    volatile uint32_t tail_index;
+    uint32_t size;
+    uint32_t num_threads;  // If num_threads == 0, the kernel is finished
+    uint32_t block_sampling_offset;
+    uint32_t block_sampling_frequency;
+    uint32_t type; //    GPUPatchType
+    uint32_t flags;  // read or write or both
+    void *records;
+    void *aux;
+} gpu_patch_buffer_t;
 
 #endif
