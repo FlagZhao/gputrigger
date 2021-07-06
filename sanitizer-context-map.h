@@ -14,7 +14,7 @@
 #include <cuda.h>
 #include <sanitizer.h>
 
-#include <gpu-patch.h>
+#include "gpu-patch.h"
 
 /******************************************************************************
  * type definitions 

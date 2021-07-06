@@ -46,9 +46,10 @@
 #define _HPCTOOLKIT_GPU_NVIDIA_SANITIZER_BUFFER_H_
 
 #include <stddef.h>
-#include <lib/prof-lean/stdatomic.h>
+#include <atomic>
+using std::atomic_uint;
 
-#include <gpu-patch.h>
+#include "gpu-patch.h"
 
 typedef struct sanitizer_buffer_channel_t sanitizer_buffer_channel_t;
 

@@ -33,8 +33,9 @@ enum GPUPatchType {
 };
 
 // Complete record, gpu_patch_record in gvprof
-typedef struct gpu_mem_access_record {
+typedef struct gpu_patch_record {
     uint64_t pc;
+    uint64_t target_pc;
     uint32_t size;
     uint32_t active;
     uint32_t flat_thread_id;
@@ -43,7 +44,7 @@ typedef struct gpu_mem_access_record {
     uint8_t value[GPU_PATCH_WARP_SIZE][GPU_PATCH_MAX_ACCESS_SIZE];  // STS.128->16 bytes
 //    GPUPatchFlags flags;
     uint32_t flags;
-} gpu_mem_access_record_t;
+} gpu_patch_record_t;
 
 
 // Address only
@@ -71,6 +72,10 @@ typedef struct gpu_patch_aux_address_dict {
 typedef struct gpu_cct_record {
     uint64_t pc;
     uint64_t target_pc;
+//    uint32_t sanitizer_flag;
+    uint32_t active;
+    uint32_t flat_thread_id;
+    uint32_t flat_block_id;
     uint32_t flag;
 } gpu_cct_record_t;
 

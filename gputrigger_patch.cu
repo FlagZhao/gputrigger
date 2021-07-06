@@ -223,53 +223,47 @@ extern "C"
 __device__ __noinline__
 SanitizerPatchResult
 sanitizer_instr_call_callback(void *user_data,  uint64_t pc, uint64_t targetPc, uint32_t flags){
-    gpu_buffer_t * buffer = (gpu_buffer_t *)user_data;
+    gpu_patch_buffer_t * buffer = (gpu_patch_buffer_t *)user_data;
 
 
     uint32_t active_mask = __activemask();
     uint32_t laneid = get_laneid();
     uint32_t first_laneid = __ffs(active_mask) - 1;
-//    @todo is this correct for whose cct depth is over 2?
-// @todo when there are thread divergence, we need to add more information.
-    if (get_flat_block_id() == 0 && laneid == first_laneid) {
-        uint32_t cur_index = atomicAdd(&(buffer->current_cct_index), 1);;
-//        @todo for test, only store to the first slot.
-        gpu_cct_record_t& record = buffer->gpu_cct_records[cur_index];
-        record.pc = pc;
-        record.target_pc = targetPc;
-        record.sanitizer_flag = flags;
-        record.flag = GPU_PATCH_FUNCTION_CALL;
+    if (laneid == first_laneid) {
+        gpu_patch_record_t* record = gpu_queue_get(buffer);
+        record->pc = pc;
+        record->flat_block_id = get_flat_block_id();
+        record->flat_thread_id = get_flat_thread_id();
+        record->target_pc = targetPc;
+//        record.sanitizer_flag = flags;
+        record->flags = GPU_PATCH_FUNCTION_CALL;
+        gpu_queue_push(buffer);
     }
-    __syncwarp(active_mask);
     return SANITIZER_PATCH_SUCCESS;
 }
 
 extern "C"
 __device__ __noinline__
 SanitizerPatchResult
-sanitizer_instr_ret_callback
-        (
-                void *user_data,
-                uint64_t pc
-        )
+sanitizer_instr_ret_callback(void *user_data,  uint64_t pc, uint64_t targetPc, uint32_t flags)
 {
-    gpu_buffer_t * buffer = (gpu_buffer_t *)user_data;
+    gpu_patch_buffer_t * buffer = (gpu_patch_buffer_t *)user_data;
 
     uint32_t active_mask = __activemask();
     uint32_t laneid = get_laneid();
     uint32_t first_laneid = __ffs(active_mask) - 1;
 //    @todo is this correct for whose cct depth is over 2?
 // @todo when there are thread divergence, we need to add more information.
-    if (get_flat_block_id() == 0 && laneid == first_laneid) {
-        uint32_t cur_index = atomicAdd(&(buffer->current_cct_index), 1);;
-//        @todo for test, only store to the first slot.
-        gpu_cct_record_t& record = buffer->gpu_cct_records[cur_index];
-        record.pc = pc;
-        record.target_pc = 0;
-        record.sanitizer_flag = 0;
-        record.flag = GPU_PATCH_FUNCTION_RET;
+    if (laneid == first_laneid) {
+        gpu_patch_record_t *record = gpu_queue_get(buffer);
+        record->pc = pc;
+        record->flat_block_id = get_flat_block_id();
+        record->flat_thread_id = get_flat_thread_id();
+        record->target_pc = targetPc;
+//        record->sanitizer_flag = flags;
+        record->flags = GPU_PATCH_FUNCTION_RET;
+        gpu_queue_push(buffer);
     }
-    __syncwarp(active_mask);
     return SANITIZER_PATCH_SUCCESS;
 }
 
