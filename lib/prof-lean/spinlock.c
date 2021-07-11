@@ -2,6 +2,9 @@
 
 // * BeginRiceCopyright *****************************************************
 //
+// $HeadURL$
+// $Id$
+//
 // --------------------------------------------------------------------------
 // Part of HPCToolkit (hpctoolkit.org)
 //
@@ -9,7 +12,7 @@
 // HPCToolkit is at 'hpctoolkit.org' and in 'README.Acknowledgments'.
 // --------------------------------------------------------------------------
 //
-// Copyright ((c)) 2002-2019, Rice University
+// Copyright ((c)) 2002-2020, Rice University
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,64 +44,21 @@
 //
 // ******************************************************* EndRiceCopyright *
 
+//***************************************************************************
+//
+// File: 
+//   $HeadURL$
+//
+// Purpose:
+//   Spin lock
+//
+// Description:
+//   [The set of functions, macros, etc. defined in the file]
+//
+// Author:
+//   [...]
+//
+//***************************************************************************
 
-#ifndef _HPCTOOLKIT_GPU_NVIDIA_SANITIZER_BUFFER_H_
-#define _HPCTOOLKIT_GPU_NVIDIA_SANITIZER_BUFFER_H_
+#include "spinlock.h"
 
-#include <stddef.h>
-#include <lib/prof-lean/stdatomic.h>
-#include <stdbool.h>
-
-#include "gpu-patch.h"
-
-typedef struct sanitizer_buffer_channel_t sanitizer_buffer_channel_t;
-
-typedef struct sanitizer_buffer_t sanitizer_buffer_t;
-
-
-void
-sanitizer_buffer_process
-(
- sanitizer_buffer_t *b
-);
-
-
-sanitizer_buffer_t *
-sanitizer_buffer_alloc
-(
- sanitizer_buffer_channel_t *channel
-);
-
-
-void
-sanitizer_buffer_produce
-(
- sanitizer_buffer_t *b,
- uint32_t thread_id,
- uint32_t cubin_id,
- uint32_t mod_id,
- int32_t kernel_id,
- uint64_t host_op_id,
- uint32_t type,
- size_t num_records,
- atomic_uint *balance,
- bool async
-);
-
-
-void
-sanitizer_buffer_free
-(
- sanitizer_buffer_channel_t *channel, 
- sanitizer_buffer_t *b,
- atomic_uint *balance
-);
-
-
-gpu_patch_buffer_t *
-sanitizer_buffer_entry_gpu_patch_buffer_get
-(
- sanitizer_buffer_t *b
-);
-
-#endif

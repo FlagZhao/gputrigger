@@ -2,7 +2,7 @@
 #define HPCTOOLKIT_GPU_PATCH_GPU_PATCH_H
 
 #include <stdint.h>
-#include <stdbool.h>
+
 
 #define GPU_PATCH_MAX_ACCESS_SIZE (16)
 #define GPU_PATCH_WARP_SIZE (32)

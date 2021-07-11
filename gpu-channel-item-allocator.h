@@ -9,7 +9,7 @@
 // HPCToolkit is at 'hpctoolkit.org' and in 'README.Acknowledgments'.
 // --------------------------------------------------------------------------
 //
-// Copyright ((c)) 2002-2019, Rice University
+// Copyright ((c)) 2002-2020, Rice University
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,64 +41,54 @@
 //
 // ******************************************************* EndRiceCopyright *
 
-
-#ifndef _HPCTOOLKIT_GPU_NVIDIA_SANITIZER_BUFFER_H_
-#define _HPCTOOLKIT_GPU_NVIDIA_SANITIZER_BUFFER_H_
-
-#include <stddef.h>
-#include <lib/prof-lean/stdatomic.h>
-#include <stdbool.h>
-
-#include "gpu-patch.h"
-
-typedef struct sanitizer_buffer_channel_t sanitizer_buffer_channel_t;
-
-typedef struct sanitizer_buffer_t sanitizer_buffer_t;
+#ifndef gpu_channel_util_h
+#define gpu_channel_util_h
 
 
-void
-sanitizer_buffer_process
+
+//******************************************************************************
+// local includes
+//******************************************************************************
+
+#include <lib/prof-lean/bichannel.h>
+#include <lib/prof-lean/stacks.h>
+#include "stddef.h"
+
+
+//******************************************************************************
+// macros
+//******************************************************************************
+
+#define channel_item_alloc(channel, channel_item_type)		\
+  (channel_item_type *) channel_item_alloc_helper		\
+  ((bichannel_t *) channel, sizeof(channel_item_type))	
+
+#define channel_item_free(channel, item)			\
+    channel_item_free_helper					\
+    ((bichannel_t *) channel,					\
+     (s_element_t *) item)
+
+
+
+//******************************************************************************
+// interface functions
+//******************************************************************************
+
+s_element_t *
+channel_item_alloc_helper
 (
- sanitizer_buffer_t *b
-);
-
-
-sanitizer_buffer_t *
-sanitizer_buffer_alloc
-(
- sanitizer_buffer_channel_t *channel
-);
-
-
-void
-sanitizer_buffer_produce
-(
- sanitizer_buffer_t *b,
- uint32_t thread_id,
- uint32_t cubin_id,
- uint32_t mod_id,
- int32_t kernel_id,
- uint64_t host_op_id,
- uint32_t type,
- size_t num_records,
- atomic_uint *balance,
- bool async
+ bichannel_t *c, 
+ size_t size
 );
 
 
 void
-sanitizer_buffer_free
+channel_item_free_helper
 (
- sanitizer_buffer_channel_t *channel, 
- sanitizer_buffer_t *b,
- atomic_uint *balance
+ bichannel_t *c, 
+ s_element_t *se
 );
 
 
-gpu_patch_buffer_t *
-sanitizer_buffer_entry_gpu_patch_buffer_get
-(
- sanitizer_buffer_t *b
-);
 
 #endif

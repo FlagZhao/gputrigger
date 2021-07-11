@@ -51,8 +51,8 @@
 
 
 #include <lib/prof-lean/bichannel.h>
+#include <malloc.h>
 
-#include <hpcrun/memory/hpcrun-malloc.h>
 
 #include "sanitizer-buffer-channel.h"
 #include "sanitizer-buffer-channel-set.h"
@@ -115,7 +115,7 @@ sanitizer_buffer_channel_alloc
 )
 {
   sanitizer_buffer_channel_t *b = 
-    hpcrun_malloc_safe(sizeof(sanitizer_buffer_channel_t));
+    malloc(sizeof(sanitizer_buffer_channel_t));
 
   channel_init(b);
 

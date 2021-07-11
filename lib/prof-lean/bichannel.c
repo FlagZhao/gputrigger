@@ -2,6 +2,9 @@
 
 // * BeginRiceCopyright *****************************************************
 //
+// $HeadURL$
+// $Id$
+//
 // --------------------------------------------------------------------------
 // Part of HPCToolkit (hpctoolkit.org)
 //
@@ -9,7 +12,7 @@
 // HPCToolkit is at 'hpctoolkit.org' and in 'README.Acknowledgments'.
 // --------------------------------------------------------------------------
 //
-// Copyright ((c)) 2002-2019, Rice University
+// Copyright ((c)) 2002-2020, Rice University
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -42,63 +45,71 @@
 // ******************************************************* EndRiceCopyright *
 
 
-#ifndef _HPCTOOLKIT_GPU_NVIDIA_SANITIZER_BUFFER_H_
-#define _HPCTOOLKIT_GPU_NVIDIA_SANITIZER_BUFFER_H_
 
-#include <stddef.h>
-#include <lib/prof-lean/stdatomic.h>
-#include <stdbool.h>
+//*****************************************************************************
+// local includes
+//*****************************************************************************
 
-#include "gpu-patch.h"
-
-typedef struct sanitizer_buffer_channel_t sanitizer_buffer_channel_t;
-
-typedef struct sanitizer_buffer_t sanitizer_buffer_t;
+#include "bichannel.h"
+#include "bistack.h"
 
 
-void
-sanitizer_buffer_process
+
+//*****************************************************************************
+// interface operations 
+//*****************************************************************************
+
+void 
+bichannel_init
 (
- sanitizer_buffer_t *b
-);
+ bichannel_t *ch
+)
+{
+  bistack_init(&ch->bistacks[bichannel_direction_forward]);
+  bistack_init(&ch->bistacks[bichannel_direction_backward]);
+}
 
 
-sanitizer_buffer_t *
-sanitizer_buffer_alloc
+void 
+bichannel_push
 (
- sanitizer_buffer_channel_t *channel
-);
+ bichannel_t *ch, 
+ bichannel_direction_t dir, 
+ s_element_t *e
+)
+{
+  bistack_push(&ch->bistacks[dir], e);
+}
 
 
-void
-sanitizer_buffer_produce
+s_element_t *
+bichannel_pop
 (
- sanitizer_buffer_t *b,
- uint32_t thread_id,
- uint32_t cubin_id,
- uint32_t mod_id,
- int32_t kernel_id,
- uint64_t host_op_id,
- uint32_t type,
- size_t num_records,
- atomic_uint *balance,
- bool async
-);
+ bichannel_t *ch, 
+ bichannel_direction_t dir
+)
+{
+  return bistack_pop(&ch->bistacks[dir]);
+}
 
 
-void
-sanitizer_buffer_free
+void 
+bichannel_reverse
 (
- sanitizer_buffer_channel_t *channel, 
- sanitizer_buffer_t *b,
- atomic_uint *balance
-);
+ bichannel_t *ch, 
+ bichannel_direction_t dir
+)
+{
+  bistack_reverse(&ch->bistacks[dir]);
+}
 
 
-gpu_patch_buffer_t *
-sanitizer_buffer_entry_gpu_patch_buffer_get
+void 
+bichannel_steal
 (
- sanitizer_buffer_t *b
-);
-
-#endif
+ bichannel_t *ch, 
+ bichannel_direction_t dir
+)
+{
+  bistack_steal(&ch->bistacks[dir]);
+}

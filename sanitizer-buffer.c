@@ -49,24 +49,29 @@
 
 #define DEBUG 0
 
-#include "../gpu-print.h"
 
 //******************************************************************************
 // local includes
 //******************************************************************************
 
 #include "sanitizer-buffer.h"
-#include "sanitizer-api.h"
+//#include "gputrigger.h"
 
 #include <stddef.h>
 #include <gpu-patch.h>
 #include <redshow.h>
+#include <malloc.h>
+#include <stdbool.h>
 
-#include <hpcrun/memory/hpcrun-malloc.h>
 
 #include "sanitizer-buffer-channel.h"
-#include "../gpu-channel-item-allocator.h"
-
+#include "gpu-channel-item-allocator.h"
+#define SANITIZER_API_DEBUG 1
+#if SANITIZER_API_DEBUG
+#define PRINT(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define PRINT(...)
+#endif
 
 //******************************************************************************
 // type declarations
@@ -151,18 +156,18 @@ sanitizer_buffer_produce
     }
     if (type == GPU_PATCH_TYPE_DEFAULT) {
       size_t num_records = sanitizer_gpu_patch_record_num_get();
-      b->gpu_patch_buffer = (gpu_patch_buffer_t *) hpcrun_malloc_safe(sizeof(gpu_patch_buffer_t));
-      b->gpu_patch_buffer->records = hpcrun_malloc_safe(num_records * sizeof(gpu_patch_record_t));
+      b->gpu_patch_buffer = (gpu_patch_buffer_t *) malloc(sizeof(gpu_patch_buffer_t));
+      b->gpu_patch_buffer->records = malloc(num_records * sizeof(gpu_patch_record_t));
       PRINT("Sanitizer-> Allocate gpu_patch_record_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_t));
     } else if (type == GPU_PATCH_TYPE_ADDRESS_PATCH) {
       size_t num_records = sanitizer_gpu_patch_record_num_get();
-      b->gpu_patch_buffer = (gpu_patch_buffer_t *) hpcrun_malloc_safe(sizeof(gpu_patch_buffer_t));
-      b->gpu_patch_buffer->records = hpcrun_malloc_safe(num_records * sizeof(gpu_patch_record_address_t));
+      b->gpu_patch_buffer = (gpu_patch_buffer_t *) malloc(sizeof(gpu_patch_buffer_t));
+      b->gpu_patch_buffer->records = malloc(num_records * sizeof(gpu_patch_record_address_t));
       PRINT("Sanitizer-> Allocate gpu_patch_record_address_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_address_t));
     } else if (type == GPU_PATCH_TYPE_ADDRESS_ANALYSIS) {
       size_t num_records = sanitizer_gpu_analysis_record_num_get();
-      b->gpu_patch_buffer = (gpu_patch_buffer_t *) hpcrun_malloc_safe(sizeof(gpu_patch_buffer_t));
-      b->gpu_patch_buffer->records = hpcrun_malloc_safe(num_records * sizeof(gpu_patch_analysis_address_t));
+      b->gpu_patch_buffer = (gpu_patch_buffer_t *) malloc(sizeof(gpu_patch_buffer_t));
+      b->gpu_patch_buffer->records = malloc(num_records * sizeof(gpu_patch_analysis_address_t));
       PRINT("Sanitizer-> Allocate gpu_patch_analysis_address_t buffer size %lu\n", num_records * sizeof(gpu_patch_analysis_address_t));
     }
   } else {

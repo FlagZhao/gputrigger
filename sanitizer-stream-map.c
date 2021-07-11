@@ -12,8 +12,6 @@
 #include <lib/prof-lean/spinlock.h>
 #include <lib/prof-lean/splay-macros.h>
 
-#include <hpcrun/messages/messages.h>
-#include <hpcrun/memory/hpcrun-malloc.h>
 
 #include "sanitizer-stream-map.h"
 
@@ -169,7 +167,7 @@ sanitizer_stream_map_entry_new(CUstream stream)
 {
   sanitizer_stream_map_entry_t *e;
   e = (sanitizer_stream_map_entry_t *)
-    hpcrun_malloc(sizeof(sanitizer_stream_map_entry_t));
+    malloc(sizeof(sanitizer_stream_map_entry_t));
   e->stream = stream;
   e->left = NULL;
   e->right = NULL;

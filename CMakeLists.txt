@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.17)
 project(gputrigger)
 
-set(CMAKE_CXX_STANDARD 17)
+
 find_package(CUDAToolkit REQUIRED)
 
 
@@ -28,10 +28,13 @@ set(redshow_path  /home/findhao/d/gvprof_new/redshow)
 include_directories(${SANITIZER_PATH}/include/ ${CUDAToolkit_TARGET_DIR}/include/ ${redshow_path}/include ./)
 message(INFO ${SANITIZER_PATH} ${CUDAToolkit_NVCC_EXECUTABLE})
 
-
-set(SOURCE_FILES ${CMAKE_SOURCE_DIR}/gputrigger_patch.cu)
+set(CMAKE_CXX_STANDARD 17)
+set(SOURCE_FILES ${CMAKE_SOURCE_DIR}/gpu-patch.cu)
 link_libraries(-lsanitizer-public)
+link_libraries(-L/home/findhao/d/gvprof_new/redshow/lib/libredshow.so)
 add_link_options(-L${SANITIZER_PATH} -fPIC -shared)
 add_custom_target(gputrigger_patch.fatbin ALL $ENV{CUDACXX} ${CMAKE_CUDA_FLAGS} --fatbin --keep-device-functions -Xptxas --compile-as-tools-patch -g  -I${SANITIZER_PATH}/include/ -I${CUDAToolkit_TARGET_DIR}/include/ -c ${SOURCE_FILES} )
 set_property(TARGET gputrigger_patch.fatbin PROPERTY CUDA_ARCHITECTURES 75)
-add_library(gputrigger SHARED gputrigger.cpp gputrigger.h gputrigger_patch.h)
+file(GLOB gputrigger_SRC CONFIGURE_DEPENDS "*.h" "*.cpp" "*.c")
+
+add_library(gputrigger SHARED ${gputrigger_SRC})
