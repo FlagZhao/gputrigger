@@ -25,7 +25,9 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 set(SANITIZER_PATH ${CUDAToolkit_TARGET_DIR}/compute-sanitizer)
 set(redshow_path  /home/findhao/d/gvprof_new/redshow)
-include_directories(${SANITIZER_PATH}/include/ ${CUDAToolkit_TARGET_DIR}/include/ ${redshow_path}/include ./)
+
+
+include_directories(${SANITIZER_PATH}/include/ ${CUDAToolkit_TARGET_DIR}/include/ ${redshow_path}/include ${redshow_path}/include/common ./)
 message(INFO ${SANITIZER_PATH} ${CUDAToolkit_NVCC_EXECUTABLE})
 
 set(CMAKE_CXX_STANDARD 17)

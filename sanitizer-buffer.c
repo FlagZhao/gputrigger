@@ -66,12 +66,7 @@
 
 #include "sanitizer-buffer-channel.h"
 #include "gpu-channel-item-allocator.h"
-#define SANITIZER_API_DEBUG 1
-#if SANITIZER_API_DEBUG
-#define PRINT(...) fprintf(stderr, __VA_ARGS__)
-#else
-#define PRINT(...)
-#endif
+
 
 //******************************************************************************
 // type declarations

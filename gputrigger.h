@@ -6,15 +6,14 @@
 #include <sanitizer_result.h>
 //#include <atomic>
 #include "gpu-patch.h"
-
+#include "template_call.h"
+#include "stdbool.h"
 #include <vector_types.h>
+#include <stdio.h>
+#include <stdio.h>
 
 
-template<typename T, typename ...Args>
-void wrapped_call(T *f, const char *fn, Args... args);
 
-template<typename T, typename ...Args>
-void wrapped_cuda_call(T *f, const char *fn, Args... args);
 
 void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size);
 
