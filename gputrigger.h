@@ -6,7 +6,6 @@
 #include <sanitizer_result.h>
 //#include <atomic>
 #include "gpu-patch.h"
-#include "template_call.h"
 #include "stdbool.h"
 #include <vector_types.h>
 #include <stdio.h>
@@ -43,6 +42,30 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
                                          const void *cbdata);
 
 int sanitizer_callbacks_subscribe();
+
+size_t sanitizer_gpu_patch_record_num_get();
+
+
+size_t sanitizer_gpu_analysis_record_num_get();
+
+
+int sanitizer_buffer_pool_size_get();
+
+
+void sanitizer_stop_flag_set();
+
+
+void sanitizer_stop_flag_unset();
+
+#define SANITIZER_API_DEBUG 1
+#if SANITIZER_API_DEBUG
+#define PRINT(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define PRINT(...)
+#endif
+
+#define PRINT_ERR(...) fprintf(stderr, __VA_ARGS__)
+
 
 
 #define GPUTRIGGER_GPUTRIGGER_H

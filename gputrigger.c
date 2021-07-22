@@ -71,15 +71,6 @@
 #include <redshow.h>
 #include <string.h>
 
-#define SANITIZER_API_DEBUG 1
-#if SANITIZER_API_DEBUG
-#define PRINT(...) fprintf(stderr, __VA_ARGS__)
-#else
-#define PRINT(...)
-#endif
-
-#define PRINT_ERR(...) fprintf(stderr, __VA_ARGS__)
-
 
 static __thread gpu_cct_record_t *gpu_cct_records = NULL;
 static __thread bool sanitizer_stop_flag = false;
@@ -226,27 +217,16 @@ SANITIZER_FN(sanitizerGetResultString, (SanitizerResult result,const char **str)
 SANITIZER_FN(__attribute__((unused)) sanitizerUnpatchModule, (CUmodule module));
 
 
-SANITIZER_FN
-(
-        sanitizerGetFunctionPcAndSize,
-        (
-                CUmodule module,
-                const char *functionName,
-                        uint64_t*pc,
-                uint64_t * size
-        )
-);
+SANITIZER_FN(sanitizerGetFunctionPcAndSize, (CUmodule module,const char *functionName, uint64_t*pc, uint64_t * size));
 
 
-SANITIZER_FN
-(
-        sanitizerGetStreamHandle,
-        (
-                CUcontext ctx,
-                CUstream stream,
-                Sanitizer_StreamHandle * hStream
-        )
-);
+SANITIZER_FN(sanitizerGetStreamHandle, (CUcontext ctx, CUstream stream, Sanitizer_StreamHandle * hStream));
+
+static void sanitizer_error_callback_dummy // __attribute__((unused))
+        (const char *type, const char *fn, const char *error_string) {
+    PRINT("Sanitizer-> %s: function %s failed with error %s\n", type, fn, error_string);
+    exit(-1);
+}
 
 
 static void sanitizer_error_report(SanitizerResult error, const char *fn) {
@@ -694,6 +674,20 @@ void sanitizer_process_signal() {
     pthread_mutex_unlock(mutex);
 }
 
+size_t sanitizer_gpu_patch_record_num_get() { return sanitizer_gpu_patch_record_num; }
+
+
+size_t sanitizer_gpu_analysis_record_num_get() { return sanitizer_gpu_analysis_record_num; }
+
+
+int sanitizer_buffer_pool_size_get() { return sanitizer_buffer_pool_size; }
+
+
+void sanitizer_stop_flag_set() { sanitizer_stop_flag = true; }
+
+
+void sanitizer_stop_flag_unset() { sanitizer_stop_flag = false; }
+
 static void
 sanitizer_kernel_launch_sync(int32_t persistent_id, uint64_t correlation_id, CUcontext context, CUmodule module,
                              CUfunction function, Sanitizer_StreamHandle priority_stream,
@@ -1016,10 +1010,7 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
 }
 
 int sanitizer_callbacks_subscribe() {
-//    CallbackTracker *tracker = new CallbackTracker();
-
     GPUPUNK_SANITIZER_CALL(sanitizerSubscribe, (&sanitizer_subscriber_handle, sanitizer_subscribe_callback, NULL));
-//    sanitizerEnableAllDomains(1, handle);
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_LAUNCH));
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_UVM));
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_RESOURCE));
@@ -1029,6 +1020,19 @@ int sanitizer_callbacks_subscribe() {
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_RUNTIME_API));
 //    GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, 1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_SYNCHRONIZE);
     return 0;
+}
+
+//static int  GPUPUNK_DEBUG=1;
+//void * monitor_init_process(int *argc, char **argv, void *data){
+//    printf("Program starts\n");
+//    const char* GPUPUNK_DEBUG = getenv("GPUPUNK_DEBUG");
+//    if (GPUPUNK_DEBUG)
+//        while (GPUPUNK_DEBUG);
+//    sanitizer_callbacks_subscribe();
+//}
+
+void monitor_fini_process(int how, void *data){
+    printf("Program finished.\n");
 }
 
 int __global_initializer__ = sanitizer_callbacks_subscribe();

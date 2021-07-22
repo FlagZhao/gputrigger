@@ -55,7 +55,7 @@
 //******************************************************************************
 
 #include "sanitizer-buffer.h"
-//#include "gputrigger.h"
+#include "gputrigger.h"
 
 #include <stddef.h>
 #include <gpu-patch.h>
