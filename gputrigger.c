@@ -157,8 +157,8 @@ static sanitizer_thread_t sanitizer_thread;
   macro(sanitizerGetStreamHandle)          \
   macro(sanitizerUnpatchModule)
 
-#define DYN_FN_NAME(f) f ## _fn
-#define SANITIZER_FN_NAME(f) DYN_FN_NAME(f)
+//#define DYN_FN_NAME(f) f ## _fn
+#define SANITIZER_FN_NAME(f) f
 
 #define SANITIZER_FN(fn, args) \
   static SanitizerResult (*SANITIZER_FN_NAME(fn)) args
@@ -182,45 +182,6 @@ static sanitizer_thread_t sanitizer_thread;
 //----------------------------------------------------------
 
 
-SANITIZER_FN (sanitizerSubscribe,
-              (Sanitizer_SubscriberHandle * subscriber, Sanitizer_CallbackFunc callback,void *userdata));
-
-SANITIZER_FN(sanitizerUnsubscribe, (Sanitizer_SubscriberHandle subscriber));
-
-SANITIZER_FN(__attribute__((unused)) sanitizerEnableAllDomains,
-             (uint32_t enable, Sanitizer_SubscriberHandle subscriber));
-
-SANITIZER_FN(sanitizerEnableDomain,
-             (uint32_t enable, Sanitizer_SubscriberHandle subscriber, Sanitizer_CallbackDomain domain));
-
-SANITIZER_FN(sanitizerAlloc, (CUcontext ctx, void **devPtr, size_t size));
-
-SANITIZER_FN(sanitizerMemset, (void* devPtr, int value, size_t count, Sanitizer_StreamHandle stream));
-
-SANITIZER_FN(sanitizerStreamSynchronize, (Sanitizer_StreamHandle stream));
-
-SANITIZER_FN(sanitizerMemcpyDeviceToHost, (void* dst, void* src, size_t count, Sanitizer_StreamHandle stream));
-
-SANITIZER_FN(sanitizerMemcpyHostToDeviceAsync, (void* dst, void* src, size_t count, Sanitizer_StreamHandle stream));
-
-SANITIZER_FN(sanitizerSetCallbackData, (CUfunction function,const void *userdata));
-
-SANITIZER_FN(sanitizerAddPatchesFromFile, (const char* filename, CUcontext ctx));
-
-SANITIZER_FN(sanitizerPatchInstructions,
-             (const Sanitizer_InstructionId instructionId, CUmodule module, const char* deviceCallbackName));
-
-SANITIZER_FN(sanitizerPatchModule, (CUmodule module));
-
-SANITIZER_FN(sanitizerGetResultString, (SanitizerResult result,const char **str));
-
-SANITIZER_FN(__attribute__((unused)) sanitizerUnpatchModule, (CUmodule module));
-
-
-SANITIZER_FN(sanitizerGetFunctionPcAndSize, (CUmodule module,const char *functionName, uint64_t*pc, uint64_t * size));
-
-
-SANITIZER_FN(sanitizerGetStreamHandle, (CUcontext ctx, CUstream stream, Sanitizer_StreamHandle * hStream));
 
 static void sanitizer_error_callback_dummy // __attribute__((unused))
         (const char *type, const char *fn, const char *error_string) {
@@ -1009,7 +970,13 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
     }
 }
 
+__attribute__((constructor))
 int sanitizer_callbacks_subscribe() {
+    const char* GPUPUNK_DEBUG_raw = getenv("GPUPUNK_DEBUG");
+    char * tmp;
+    int GPUPUNK_DEBUG = strtol(GPUPUNK_DEBUG_raw, &tmp, 10);
+    if (GPUPUNK_DEBUG)
+        while (GPUPUNK_DEBUG);
     GPUPUNK_SANITIZER_CALL(sanitizerSubscribe, (&sanitizer_subscriber_handle, sanitizer_subscribe_callback, NULL));
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_LAUNCH));
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_UVM));
@@ -1022,17 +989,3 @@ int sanitizer_callbacks_subscribe() {
     return 0;
 }
 
-//static int  GPUPUNK_DEBUG=1;
-//void * monitor_init_process(int *argc, char **argv, void *data){
-//    printf("Program starts\n");
-//    const char* GPUPUNK_DEBUG = getenv("GPUPUNK_DEBUG");
-//    if (GPUPUNK_DEBUG)
-//        while (GPUPUNK_DEBUG);
-//    sanitizer_callbacks_subscribe();
-//}
-
-void monitor_fini_process(int how, void *data){
-    printf("Program finished.\n");
-}
-
-int __global_initializer__ = sanitizer_callbacks_subscribe();
