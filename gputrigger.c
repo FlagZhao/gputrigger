@@ -208,7 +208,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module, const vo
     const char *env_FATBIN_PATCH = getenv("GPUPUNK_PATCH");
     PRINT("The GPUPUNK_PATH is %s\n", env_FATBIN_PATCH);
     if (env_FATBIN_PATCH) {
-        if (!access(env_FATBIN_PATCH, R_OK)) {
+        if (access(env_FATBIN_PATCH, R_OK) != 0) {
             PRINT_ERR("ERROR: Can not access GPUPUNK_PATH\n");
             exit(-1);
         }
@@ -973,8 +973,11 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
 __attribute__((constructor))
 int sanitizer_callbacks_subscribe() {
     const char* GPUPUNK_DEBUG_raw = getenv("GPUPUNK_DEBUG");
-    char * tmp;
-    int GPUPUNK_DEBUG = strtol(GPUPUNK_DEBUG_raw, &tmp, 10);
+    int GPUPUNK_DEBUG = 0;
+    if (GPUPUNK_DEBUG_raw){
+        char * tmp;
+        GPUPUNK_DEBUG = strtol(GPUPUNK_DEBUG_raw, &tmp, 10);
+    }
     if (GPUPUNK_DEBUG)
         while (GPUPUNK_DEBUG);
     GPUPUNK_SANITIZER_CALL(sanitizerSubscribe, (&sanitizer_subscriber_handle, sanitizer_subscribe_callback, NULL));
