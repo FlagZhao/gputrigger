@@ -431,8 +431,9 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context, San
 
     int grid_dim = grid_size.x * grid_size.y * grid_size.z;
     int block_dim = block_size.x * block_size.y * block_size.z;
-    int block_sampling_frequency = 0;
-    int block_sampling_offset = kernel_sampling ? rand() % grid_dim % block_sampling_frequency : 0;
+//    @todo sampling frequency
+    int block_sampling_frequency = 1;
+    int block_sampling_offset = kernel_sampling ? rand()% grid_dim % block_sampling_frequency: 0;
 
     PRINT("Sanitizer-> kernel sampling %d\n", kernel_sampling);
     PRINT("Sanitizer-> sampling offset %d\n", block_sampling_offset);
@@ -873,7 +874,7 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
         static __thread dim3 block_size = {0, 0, 0};
         static __thread Sanitizer_StreamHandle priority_stream = NULL;
         static __thread Sanitizer_StreamHandle kernel_stream = NULL;
-        static __thread bool kernel_sampling = true;
+        static __thread bool kernel_sampling = false;
         static __thread uint64_t correlation_id = 0;
         static __thread int32_t persistent_id = 0;
 

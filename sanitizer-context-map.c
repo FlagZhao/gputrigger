@@ -483,7 +483,7 @@ sanitizer_context_map_entry_priority_stream_get
 {
     if (entry->priority_stream == NULL) {
         spinlock_lock(&sanitizer_context_map_lock);
-        entry->priority_stream = cuda_priority_stream_create();
+        entry->priority_stream = NULL;
         spinlock_unlock(&sanitizer_context_map_lock);
     }
     return entry->priority_stream;
@@ -498,7 +498,7 @@ sanitizer_context_map_entry_kernel_stream_get
 {
     if (entry->kernel_stream == NULL) {
         spinlock_lock(&sanitizer_context_map_lock);
-        entry->kernel_stream = cuda_stream_create();
+        entry->kernel_stream = NULL;
         spinlock_unlock(&sanitizer_context_map_lock);
     }
     return entry->kernel_stream;
