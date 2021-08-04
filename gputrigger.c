@@ -57,6 +57,7 @@
 #include "sanitizer-context-map.h"
 #include "sanitizer-buffer.h"
 #include "sanitizer-buffer-channel.h"
+#include "sanitizer-buffer-channel-set.h"
 //#include "cuda-api.h"
 #include <sys/types.h>
 #include <unistd.h>
@@ -212,6 +213,9 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module, const vo
             PRINT_ERR("ERROR: Can not access GPUPUNK_PATH\n");
             exit(-1);
         }
+    }else{
+        PRINT_ERR("ERROR: no GPUPUNK_PATH env specified.");
+        exit(-1);
     }
     PRINT("Patch CUBIN: \n");
     // Instrument user code!
@@ -433,7 +437,7 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context, San
     int block_dim = block_size.x * block_size.y * block_size.z;
 //    @todo sampling frequency
     int block_sampling_frequency = 1;
-    int block_sampling_offset = kernel_sampling ? rand()% grid_dim % block_sampling_frequency: 0;
+    int block_sampling_offset = kernel_sampling ? rand() % grid_dim % block_sampling_frequency : 0;
 
     PRINT("Sanitizer-> kernel sampling %d\n", kernel_sampling);
     PRINT("Sanitizer-> sampling offset %d\n", block_sampling_offset);
@@ -623,6 +627,10 @@ static void sanitizer_kernel_analyze(int32_t persistent_id, uint64_t correlation
     }
 }
 
+//******************************************************************************
+// asynchronous process thread
+//******************************************************************************
+
 void sanitizer_process_signal() {
     pthread_cond_t *cond = &(sanitizer_thread.cond);
     pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
@@ -634,6 +642,50 @@ void sanitizer_process_signal() {
     pthread_cond_signal(cond);
 
     pthread_mutex_unlock(mutex);
+}
+
+static void sanitizer_process_await() {
+    pthread_cond_t *cond = &(sanitizer_thread.cond);
+    pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
+
+    pthread_mutex_lock(mutex);
+
+    while (!atomic_load(&sanitizer_process_awake_flag)) {
+        pthread_cond_wait(cond, mutex);
+    }
+
+    atomic_store(&sanitizer_process_awake_flag, false);
+
+    pthread_mutex_unlock(mutex);
+}
+
+
+static void *sanitizer_process_thread(void *arg) {
+    pthread_cond_t *cond = &(sanitizer_thread.cond);
+    pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
+
+    while (!atomic_load(&sanitizer_process_stop_flag)) {
+        redshow_analysis_begin();
+        sanitizer_buffer_channel_set_consume();
+        redshow_analysis_end();
+        sanitizer_process_await();
+    }
+
+    // Last records
+    sanitizer_buffer_channel_set_consume();
+
+    // Create thread data
+//    thread_data_t *td = NULL;
+//    int id = sanitizer_thread_id_self;
+//    hpcrun_threadMgr_non_compact_data_get(id, NULL, &td);
+//    hpcrun_set_thread_data(td);
+
+    atomic_fetch_add(&sanitizer_process_thread_counter, -1);
+
+    pthread_mutex_destroy(mutex);
+    pthread_cond_destroy(cond);
+
+    return NULL;
 }
 
 size_t sanitizer_gpu_patch_record_num_get() { return sanitizer_gpu_patch_record_num; }
@@ -971,12 +1023,26 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
     }
 }
 
+void sanitizer_process_init() {
+    if (sanitizer_analysis_async) {
+        pthread_t *thread = &(sanitizer_thread.thread);
+        pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
+        pthread_cond_t *cond = &(sanitizer_thread.cond);
+        atomic_fetch_add(&sanitizer_process_thread_counter, 1);
+
+        pthread_mutex_init(mutex, NULL);
+        pthread_cond_init(cond, NULL);
+        pthread_create(thread, NULL, sanitizer_process_thread, NULL);
+
+    }
+}
+
 __attribute__((constructor))
 int sanitizer_callbacks_subscribe() {
-    const char* GPUPUNK_DEBUG_raw = getenv("GPUPUNK_DEBUG");
+    const char *GPUPUNK_DEBUG_raw = getenv("GPUPUNK_DEBUG");
     int GPUPUNK_DEBUG = 0;
-    if (GPUPUNK_DEBUG_raw){
-        char * tmp;
+    if (GPUPUNK_DEBUG_raw) {
+        char *tmp;
         GPUPUNK_DEBUG = strtol(GPUPUNK_DEBUG_raw, &tmp, 10);
     }
     if (GPUPUNK_DEBUG)
@@ -990,6 +1056,9 @@ int sanitizer_callbacks_subscribe() {
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_DRIVER_API));
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_RUNTIME_API));
 //    GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, 1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_SYNCHRONIZE);
+
+    sanitizer_process_init();
+
     return 0;
 }
 

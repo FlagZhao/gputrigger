@@ -45,9 +45,9 @@ int sanitizer_callbacks_subscribe();
 
 size_t sanitizer_gpu_patch_record_num_get();
 
-
 size_t sanitizer_gpu_analysis_record_num_get();
 
+void sanitizer_process_init ();
 
 int sanitizer_buffer_pool_size_get();
 

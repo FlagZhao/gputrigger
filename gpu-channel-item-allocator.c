@@ -46,6 +46,7 @@
 //******************************************************************************
 
 
+#include <malloc.h>
 #include "gpu-channel-item-allocator.h"
 
 
@@ -67,7 +68,7 @@ channel_item_alloc_helper
     se = bichannel_pop(c, bichannel_direction_backward);
   }
   if (!se) {
-    se = (s_element_t *) hpcrun_malloc_safe(size);
+    se = (s_element_t *) malloc(size);
     sstack_ptr_set(&se->next, 0);
   }
   return se;
