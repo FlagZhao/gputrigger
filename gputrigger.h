@@ -57,6 +57,13 @@ void sanitizer_stop_flag_set();
 
 void sanitizer_stop_flag_unset();
 
+static void output_dir_config(char *dir_name, char *suffix);
+void sanitizer_value_pattern_analysis_enable();
+void sanitizer_callbacks_unsubscribe();
+void sanitizer_device_flush();
+void sanitizer_device_shutdown();
+
+
 #define SANITIZER_API_DEBUG 1
 #if SANITIZER_API_DEBUG
 #define PRINT(...) fprintf(stderr, __VA_ARGS__)
@@ -65,6 +72,7 @@ void sanitizer_stop_flag_unset();
 #endif
 
 #define PRINT_ERR(...) fprintf(stderr, __VA_ARGS__)
+
 
 
 

@@ -28,8 +28,8 @@ enum GPUPatchType {
     GPU_PATCH_TYPE_DEFAULT = 0,
     GPU_PATCH_TYPE_ADDRESS_PATCH = 1,
     GPU_PATCH_TYPE_ADDRESS_ANALYSIS = 2,
-    GPU_PATCH_TYPE_COUNT = 3,
-    GPU_PATCH_CCT = 4
+    GPU_PATCH_CCT = 3,
+    GPU_PATCH_TYPE_COUNT = 4
 };
 
 // Complete record, gpu_patch_record in gvprof
