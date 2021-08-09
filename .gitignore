@@ -268,3 +268,5 @@ fabric.properties
 build/
 *.fatbin
 *.so
+
+core.*
