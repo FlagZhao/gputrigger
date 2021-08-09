@@ -179,6 +179,10 @@ static sanitizer_thread_t sanitizer_thread;
 }
 
 
+static const int DEFAULT_GPU_PATCH_RECORD_NUM = 16 * 1024;
+static const int DEFAULT_BUFFER_POOL_SIZE = 500;
+static const int DEFAULT_DEVICE_BUFFER_SIZE = 1024 * 1024 * 8;
+
 //----------------------------------------------------------
 // sanitizer function pointers for late binding
 //----------------------------------------------------------
@@ -1115,8 +1119,11 @@ int sanitizer_callbacks_subscribe() {
         char *tmp;
         GPUPUNK_DEBUG = strtol(GPUPUNK_DEBUG_raw, &tmp, 10);
     }
-    if (GPUPUNK_DEBUG)
+    if (GPUPUNK_DEBUG){
         while (GPUPUNK_DEBUG);
+    }
+    sanitizer_buffer_config(DEFAULT_GPU_PATCH_RECORD_NUM, DEFAULT_BUFFER_POOL_SIZE);
+
     GPUPUNK_SANITIZER_CALL(sanitizerSubscribe, (&sanitizer_subscriber_handle, sanitizer_subscribe_callback, NULL));
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_LAUNCH));
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_UVM));

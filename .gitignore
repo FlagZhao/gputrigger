@@ -270,3 +270,4 @@ build/
 *.so
 
 core.*
+core

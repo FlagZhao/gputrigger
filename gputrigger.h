@@ -62,7 +62,7 @@ void sanitizer_value_pattern_analysis_enable();
 void sanitizer_callbacks_unsubscribe();
 void sanitizer_device_flush();
 void sanitizer_device_shutdown();
-
+void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size);
 
 #define SANITIZER_API_DEBUG 1
 #if SANITIZER_API_DEBUG
