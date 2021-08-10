@@ -10,6 +10,7 @@
 #include <vector_types.h>
 #include <stdio.h>
 #include <stdio.h>
+#include "cubin-hash-map.h"
 
 
 

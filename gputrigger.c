@@ -210,7 +210,7 @@ void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size) {
 
 
 static void sanitizer_load_callback(CUcontext context, CUmodule module, const void *cubin, size_t cubin_size) {
-//    check patch file
+//    check patch file existence and permission
     const char *env_FATBIN_PATCH = getenv("GPUPUNK_PATCH");
     PRINT("The GPUPUNK_PATH is %s\n", env_FATBIN_PATCH);
     if (env_FATBIN_PATCH) {
@@ -222,6 +222,42 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module, const vo
         PRINT_ERR("ERROR: no GPUPUNK_PATH env specified.");
         exit(-1);
     }
+
+    hpctoolkit_cumod_st_t *cumod = (hpctoolkit_cumod_st_t *) module;
+    uint32_t cubin_id = cumod->cubin_id;
+    uint32_t mod_id = cumod->mod_id;
+
+
+
+    // Compute hash for cubin and store it into a map
+    cubin_hash_map_entry_t *cubin_hash_entry = cubin_hash_map_lookup(cubin_id);
+    unsigned char *hash;
+    unsigned int hash_len;
+    if (cubin_hash_entry == NULL) {
+        cubin_hash_map_insert(cubin_id, cubin, cubin_size);
+        cubin_hash_entry = cubin_hash_map_lookup(cubin_id);
+    }
+    hash = cubin_hash_map_entry_hash_get(cubin_hash_entry, &hash_len);
+
+    // Create file name
+    char file_name[PATH_MAX];
+    size_t i;
+    size_t used = 0;
+//    @todo fix path
+    used += sprintf(&file_name[used], "%s", "./");
+    used += sprintf(&file_name[used], "%s", "/cubins/");
+    mkdir(file_name, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    for (i = 0; i < hash_len; ++i) {
+        used += sprintf(&file_name[used], "%02x", hash[i]);
+    }
+    used += sprintf(&file_name[used], "%s", ".cubin");
+    PRINT("Sanitizer-> cubin_id %d hash %s\n", cubin_id, file_name);
+
+    uint32_t hpctoolkit_module_id = 0;
+    PRINT("Sanitizer-> <cubin_id %d, mod_id %d> -> hpctoolkit_module_id %d\n", cubin_id, mod_id, hpctoolkit_module_id);
+//@todo fix cubin register
+    redshow_cubin_cache_register(cubin_id, mod_id, 0, NULL, file_name);
+
     PRINT("Patch CUBIN: \n");
     // Instrument user code!
     GPUPUNK_SANITIZER_CALL(sanitizerAddPatchesFromFile, (env_FATBIN_PATCH, context));
@@ -231,7 +267,6 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module, const vo
             "sanitizer_shared_memory_access_callback"));
     GPUPUNK_SANITIZER_CALL(sanitizerPatchInstructions, (SANITIZER_INSTRUCTION_LOCAL_MEMORY_ACCESS, module,
             "sanitizer_local_memory_access_callback"));
-    //@todo there are bugsredshow_cubin_cache_register
     GPUPUNK_SANITIZER_CALL(sanitizerPatchInstructions, (SANITIZER_INSTRUCTION_BLOCK_ENTER, module,
             "sanitizer_block_enter_callback"));
     GPUPUNK_SANITIZER_CALL(sanitizerPatchInstructions, (SANITIZER_INSTRUCTION_BLOCK_EXIT, module,
@@ -546,7 +581,8 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id, uint3
     sanitizer_buffer_channel_push(sanitizer_buffer, gpu_patch_type);
 }
 
-
+// by findhao
+// @todo this function is never used when it is in value pattern mode?
 static void sanitizer_kernel_analyze(int32_t persistent_id, uint64_t correlation_id, uint32_t cubin_id, uint32_t mod_id,
                                      Sanitizer_StreamHandle priority_stream, Sanitizer_StreamHandle kernel_stream,
                                      bool analysis_end) {
@@ -558,6 +594,7 @@ static void sanitizer_kernel_analyze(int32_t persistent_id, uint64_t correlation
         GPUPUNK_SANITIZER_CALL(sanitizerMemcpyDeviceToHost, (sanitizer_gpu_patch_buffer_addr_write_host,
                 sanitizer_gpu_patch_buffer_addr_write_device, sizeof(gpu_patch_buffer_t),
                 priority_stream));
+
 
         while (sanitizer_gpu_patch_buffer_addr_read_host->num_threads != 0) {
             if (sanitizer_gpu_patch_buffer_addr_read_host->full != 0) {
@@ -1082,8 +1119,8 @@ void sanitizer_device_shutdown() {
         // Spin wait
         sanitizer_buffer_channel_flush(sanitizer_gpu_patch_type);
         sanitizer_process_signal();
-        while (sanitizer_buffer_channel_finish(sanitizer_gpu_analysis_type) == false) {}
     }
+    while (sanitizer_buffer_channel_finish(sanitizer_gpu_analysis_type) == false) {}
 
     // Attribute performance metrics to CCTs
     redshow_flush();
@@ -1119,7 +1156,7 @@ int sanitizer_callbacks_subscribe() {
         char *tmp;
         GPUPUNK_DEBUG = strtol(GPUPUNK_DEBUG_raw, &tmp, 10);
     }
-    if (GPUPUNK_DEBUG){
+    if (GPUPUNK_DEBUG) {
         while (GPUPUNK_DEBUG);
     }
     sanitizer_buffer_config(DEFAULT_GPU_PATCH_RECORD_NUM, DEFAULT_BUFFER_POOL_SIZE);
@@ -1135,6 +1172,7 @@ int sanitizer_callbacks_subscribe() {
 //    GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, 1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_SYNCHRONIZE);
 
     sanitizer_process_init();
+//    while(true);
 //    sleep(10);
 //    sanitizer_device_flush();
 //    sanitizer_device_shutdown();

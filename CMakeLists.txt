@@ -43,6 +43,14 @@ set_property(TARGET gputrigger_patch.fatbin PROPERTY CUDA_ARCHITECTURES 75)
 file(GLOB gputrigger_SRC CONFIGURE_DEPENDS "*.h" "*.cpp" "*.c")
 
 add_library(gputrigger SHARED ${gputrigger_SRC})
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-target_link_libraries(gputrigger PUBLIC Threads::Threads ${DIR_PROF_LEAN})
+find_package(MbedTLS)
+
+target_link_libraries(gputrigger PUBLIC
+        Threads::Threads
+        ${DIR_PROF_LEAN}
+        -lmbedcrypto
+        )
+

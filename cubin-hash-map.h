@@ -9,7 +9,7 @@
 // HPCToolkit is at 'hpctoolkit.org' and in 'README.Acknowledgments'.
 // --------------------------------------------------------------------------
 //
-// Copyright ((c)) 2002-2019, Rice University
+// Copyright ((c)) 2002-2020, Rice University
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,71 +41,54 @@
 //
 // ******************************************************* EndRiceCopyright *
 
-
-#ifndef _HPCTOOLKIT_GPU_NVIDIA_SANITIZER_BUFFER_H_
-#define _HPCTOOLKIT_GPU_NVIDIA_SANITIZER_BUFFER_H_
-
-#include <stddef.h>
-#include <lib/prof-lean/stdatomic.h>
-#include <stdbool.h>
-
-#include "gpu-patch.h"
-
-typedef struct sanitizer_buffer_channel_t sanitizer_buffer_channel_t;
-
-typedef struct sanitizer_buffer_t sanitizer_buffer_t;
+#ifndef cubin_hash_map_h
+#define cubin_hash_map_h
 
 
-void
-sanitizer_buffer_process
+
+//*****************************************************************************
+// system includes
+//*****************************************************************************
+
+#include <stdint.h>
+
+
+
+//*****************************************************************************
+// type definitions 
+//*****************************************************************************
+
+typedef struct cubin_hash_map_entry_s cubin_hash_map_entry_t;
+
+
+
+//*****************************************************************************
+// interface operations
+//*****************************************************************************
+
+cubin_hash_map_entry_t *
+cubin_hash_map_lookup
 (
- sanitizer_buffer_t *b
+ uint32_t cubin_id
 );
 
 
-sanitizer_buffer_t *
-sanitizer_buffer_alloc
-(
- sanitizer_buffer_channel_t *channel
-);
-
-
 void
-sanitizer_buffer_produce
+cubin_hash_map_insert
 (
- sanitizer_buffer_t *b,
- uint32_t thread_id,
  uint32_t cubin_id,
- uint32_t mod_id,
- int32_t kernel_id,
- uint64_t host_op_id,
- uint32_t type,
- size_t num_records,
- atomic_uint *balance,
- bool async
+ const void *cubin,
+ size_t size
 );
 
 
-void
-sanitizer_buffer_free
+unsigned char *
+cubin_hash_map_entry_hash_get
 (
- sanitizer_buffer_channel_t *channel, 
- sanitizer_buffer_t *b,
- atomic_uint *balance
+ cubin_hash_map_entry_t *entry,
+ unsigned int *len
 );
 
-
-gpu_patch_buffer_t *
-sanitizer_buffer_entry_gpu_patch_buffer_get
-(
- sanitizer_buffer_t *b
-);
-
-typedef struct {
-    uint32_t cubin_id;
-    uint32_t unknown_field[1];
-    uint32_t mod_id;
-} hpctoolkit_cumod_st_t;
 
 
 #endif

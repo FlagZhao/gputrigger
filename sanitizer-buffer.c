@@ -99,7 +99,6 @@ sanitizer_buffer_process
   uint32_t mod_id = b->mod_id;
   int32_t kernel_id = b->kernel_id;
   uint64_t host_op_id = b->host_op_id;
-  PRINT("GPUPUNK -> test ==========\n");
   gpu_patch_buffer_t *gpu_patch_buffer = b->gpu_patch_buffer;
   
   redshow_analyze(thread_id, cubin_id, mod_id, kernel_id, host_op_id, gpu_patch_buffer);
