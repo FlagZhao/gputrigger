@@ -72,7 +72,8 @@
 #include <redshow.h>
 #include <string.h>
 #include <sys/stat.h>
-
+#include "cubin-id-map.h"
+#include "cubin-symbols.h"
 
 static __thread gpu_cct_record_t *gpu_cct_records = NULL;
 static __thread bool sanitizer_stop_flag = false;
@@ -173,7 +174,7 @@ static sanitizer_thread_t sanitizer_thread;
   } \
 }
 
-#define HPCRUN_SANITIZER_CALL_NO_CHECK(fn, args) \
+#define GPUPUNK_SANITIZER_CALL_NO_CHECK(fn, args) \
 { \
   SANITIZER_FN_NAME(fn) args; \
 }
@@ -255,7 +256,24 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module, const vo
 
     uint32_t hpctoolkit_module_id = 0;
     PRINT("Sanitizer-> <cubin_id %d, mod_id %d> -> hpctoolkit_module_id %d\n", cubin_id, mod_id, hpctoolkit_module_id);
-//@todo fix cubin register
+    // Compute elf vector
+    Elf_SymbolVector *elf_vector = computeCubinFunctionOffsets(cubin, cubin_size);
+
+    // Register cubin module
+    cubin_id_map_insert(cubin_id, hpctoolkit_module_id, elf_vector);
+
+    // Query cubin function offsets
+    uint64_t *addrs = (uint64_t *)malloc(sizeof(uint64_t) * elf_vector->nsymbols);
+    for (i = 0; i < elf_vector->nsymbols; ++i) {
+        addrs[i] = 0;
+        if (elf_vector->symbols[i] != 0) {
+            uint64_t pc;
+            uint64_t size;
+            // do not check error
+            GPUPUNK_SANITIZER_CALL_NO_CHECK(sanitizerGetFunctionPcAndSize, (module, elf_vector->names[i], &pc, &size));
+            addrs[i] = pc;
+        }
+    }
     redshow_cubin_cache_register(cubin_id, mod_id, 0, NULL, file_name);
 
     PRINT("Patch CUBIN: \n");
@@ -785,8 +803,8 @@ sanitizer_kernel_launch_sync(int32_t persistent_id, uint64_t correlation_id, CUc
     }
 
     // Reserve for debugging correctness
-    //PRINT("head_index %u, tail_index %u, num_left_threads %lu\n",
-    //  sanitizer_gpu_patch_buffer_host->head_index, sanitizer_gpu_patch_buffer_host->tail_index, num_threads);
+    PRINT("head_index %u, tail_index %u, num_left_threads %lu\n",
+      sanitizer_gpu_patch_buffer_host->head_index, sanitizer_gpu_patch_buffer_host->tail_index, num_threads);
 
     while (true) {
         // Copy buffer
@@ -878,12 +896,12 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
         Sanitizer_CallbackData *cb = (Sanitizer_CallbackData *) cbdata;
         if (cb->callbackSite == SANITIZER_API_ENTER) {
             // Reserve for debug
-            //PRINT("Sanitizer-> Thread %u enter context %p function %s\n", sanitizer_thread_id_local, cb->context, cb->functionName);
+//            PRINT("Sanitizer-> Thread %u enter context %p function %s\n", sanitizer_thread_id_local, cb->context, cb->functionName);
             sanitizer_context_map_context_lock(cb->context, sanitizer_thread_id_local);
             sanitizer_thread_context = cb->context;
         } else {
             // Reserve for debug
-            //PRINT("Sanitizer-> Thread %u exit context %p function %s\n", sanitizer_thread_id_local, cb->context, cb->functionName);
+//            PRINT("Sanitizer-> Thread %u exit context %p function %s\n", sanitizer_thread_id_local, cb->context, cb->functionName);
             // Caution, do not use cb->context. When cuCtxGetCurrent is used, cb->context != sanitizer_thread_context
             sanitizer_context_map_context_unlock(sanitizer_thread_context, sanitizer_thread_id_local);
             sanitizer_thread_context = NULL;
@@ -1072,6 +1090,18 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
         redshow_memset_register(persistent_id, correlation_id, md->address, md->value, md->width);
     } else if (domain == SANITIZER_CB_DOMAIN_SYNCHRONIZE) {
         // TODO(Keren): sync data
+        switch (cbid)
+        {
+            case SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED:
+            {
+                PRINT("ANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED:");
+                sanitizer_device_flush();
+                sanitizer_device_shutdown();
+                break;
+            }
+            default:
+                break;
+        }
     }
 }
 
@@ -1088,7 +1118,7 @@ void sanitizer_value_pattern_analysis_enable() {
     output_dir_config(dir_name, "/value_pattern/");
     redshow_output_dir_config(REDSHOW_ANALYSIS_VALUE_PATTERN, dir_name);
     sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_t);
-    sanitizer_analysis_async = true;
+//    sanitizer_analysis_async = true;
 }
 
 void sanitizer_device_flush() {
@@ -1146,7 +1176,6 @@ void sanitizer_process_init() {
 __attribute__((constructor))
 int sanitizer_callbacks_subscribe() {
 
-    sanitizer_value_pattern_analysis_enable();
 
     pid_t pid = getpid();
     printf("PID: %d\n", pid);
@@ -1159,6 +1188,9 @@ int sanitizer_callbacks_subscribe() {
     if (GPUPUNK_DEBUG) {
         while (GPUPUNK_DEBUG);
     }
+
+    sanitizer_value_pattern_analysis_enable();
+
     sanitizer_buffer_config(DEFAULT_GPU_PATCH_RECORD_NUM, DEFAULT_BUFFER_POOL_SIZE);
 
     GPUPUNK_SANITIZER_CALL(sanitizerSubscribe, (&sanitizer_subscriber_handle, sanitizer_subscribe_callback, NULL));

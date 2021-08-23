@@ -10,6 +10,7 @@
 
 #include <lib/prof-lean/spinlock.h>
 #include <lib/prof-lean/splay-macros.h>
+#include <stdio.h>
 
 
 //#include "cuda-api.h"
@@ -98,6 +99,7 @@ static void
 sanitizer_context_map_delete_root()
 {
 //    TMSG(DEFER_CTXT, "context %p: delete", sanitizer_context_map_root->context);
+printf("\"context %p: delete\", sanitizer_context_map_root->context);");
 
     if (sanitizer_context_map_root->left == NULL) {
         sanitizer_context_map_root = sanitizer_context_map_root->right;
@@ -158,6 +160,7 @@ sanitizer_context_map_lookup_internal(CUcontext context)
     }
 
 //    TMSG(DEFER_CTXT, "context map lookup: context=0x%lx (record %p)", context, result);
+printf("context map lookup: context=0x%lx (record %p)", context, result);
     return result;
 }
 

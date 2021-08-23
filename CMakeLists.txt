@@ -35,7 +35,6 @@ set(SOURCE_FILES ${CMAKE_SOURCE_DIR}/gpu-patch.cu)
 link_libraries(-lsanitizer-public)
 link_libraries(-lpthread)
 link_directories(/home/findhao/d/gvprof_new/redshow/lib/)
-link_libraries(-lredshow)
 aux_source_directory(${CMAKE_SOURCE_DIR}/lib/prof-lean DIR_PROF_LEAN)
 add_link_options(-L${SANITIZER_PATH}  -fPIC -shared)
 add_custom_target(gputrigger_patch.fatbin ALL $ENV{CUDACXX} ${CMAKE_CUDA_FLAGS} --fatbin --keep-device-functions -Xptxas --compile-as-tools-patch -g  -I${SANITIZER_PATH}/include/ -I${CUDAToolkit_TARGET_DIR}/include/ -c ${SOURCE_FILES} )
@@ -47,10 +46,12 @@ add_library(gputrigger SHARED ${gputrigger_SRC})
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(MbedTLS)
+find_package(LibElf)
 
 target_link_libraries(gputrigger PUBLIC
         Threads::Threads
         ${DIR_PROF_LEAN}
         -lmbedcrypto
+        -lredshow
         )
 
