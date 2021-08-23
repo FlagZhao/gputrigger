@@ -46,12 +46,13 @@ add_library(gputrigger SHARED ${gputrigger_SRC})
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(MbedTLS)
-find_package(LibElf)
+#find_package(LibElf)
 
 target_link_libraries(gputrigger PUBLIC
         Threads::Threads
         ${DIR_PROF_LEAN}
         -lmbedcrypto
         -lredshow
+        -lelf
         )
 
