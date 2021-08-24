@@ -283,7 +283,6 @@ computeCubinFunctionOffsets
     char *cubin_ptr = (char *) cubin_ptr_const;
     Elf_SymbolVector *symbols = NULL;
     elf_version(EV_CURRENT);
-    printf("\ncomputeCubinFunctionOffsets\n");
     Elf *elf = elf_memory(cubin_ptr, cubin_len);
     elf_helper_t eh;
     elf_helper_initialize(elf, &eh);

@@ -263,7 +263,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module, const vo
     cubin_id_map_insert(cubin_id, hpctoolkit_module_id, elf_vector);
 
     // Query cubin function offsets
-    uint64_t *addrs = (uint64_t *)malloc(sizeof(uint64_t) * elf_vector->nsymbols);
+    uint64_t *addrs = (uint64_t *) malloc(sizeof(uint64_t) * elf_vector->nsymbols);
     for (i = 0; i < elf_vector->nsymbols; ++i) {
         addrs[i] = 0;
         if (elf_vector->symbols[i] != 0) {
@@ -274,7 +274,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module, const vo
             addrs[i] = pc;
         }
     }
-    redshow_cubin_cache_register(cubin_id, mod_id, 0, NULL, file_name);
+    redshow_cubin_cache_register(cubin_id, mod_id, elf_vector->nsymbols, addrs, file_name);
 
     PRINT("Patch CUBIN: \n");
     // Instrument user code!
@@ -804,7 +804,7 @@ sanitizer_kernel_launch_sync(int32_t persistent_id, uint64_t correlation_id, CUc
 
     // Reserve for debugging correctness
     PRINT("head_index %u, tail_index %u, num_left_threads %lu\n",
-      sanitizer_gpu_patch_buffer_host->head_index, sanitizer_gpu_patch_buffer_host->tail_index, num_threads);
+          sanitizer_gpu_patch_buffer_host->head_index, sanitizer_gpu_patch_buffer_host->tail_index, num_threads);
 
     while (true) {
         // Copy buffer
@@ -1089,11 +1089,10 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
         int32_t persistent_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
         redshow_memset_register(persistent_id, correlation_id, md->address, md->value, md->width);
     } else if (domain == SANITIZER_CB_DOMAIN_SYNCHRONIZE) {
+        PRINT("========ANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED:");
         // TODO(Keren): sync data
-        switch (cbid)
-        {
-            case SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED:
-            {
+        switch (cbid) {
+            case SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED: {
                 PRINT("ANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED:");
                 sanitizer_device_flush();
                 sanitizer_device_shutdown();
@@ -1201,7 +1200,7 @@ int sanitizer_callbacks_subscribe() {
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_MEMSET));
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_DRIVER_API));
     GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_RUNTIME_API));
-//    GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, 1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_SYNCHRONIZE);
+    GPUPUNK_SANITIZER_CALL(sanitizerEnableDomain, (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_SYNCHRONIZE));
 
     sanitizer_process_init();
 //    while(true);
