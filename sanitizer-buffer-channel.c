@@ -209,7 +209,6 @@ sanitizer_buffer_channel_consume
 )
 {
   bool do_flush = false;
-    printf("hello, this is consume");
 
 FLUSH:
   // steal elements previously enqueued by the producer

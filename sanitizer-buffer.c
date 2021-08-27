@@ -111,7 +111,7 @@ sanitizer_buffer_alloc
  sanitizer_buffer_channel_t *channel
 )
 {
-  return channel_item_alloc(channel, sanitizer_buffer_t);
+    return channel_item_alloc(channel, sanitizer_buffer_t);
 }
 
 
@@ -141,15 +141,15 @@ sanitizer_buffer_produce
   atomic_fetch_add(balance, 1);
   if (b->gpu_patch_buffer == NULL) {
     // Spin waiting
-    while (atomic_load(balance) >= sanitizer_buffer_pool_size_get()) {
-      if (!async) {
-        b->gpu_patch_buffer = NULL;
-        return ;
-      }
-      sanitizer_process_signal();
-    }
     if (type == GPU_PATCH_TYPE_DEFAULT) {
-      size_t num_records = sanitizer_gpu_patch_record_num_get();
+        while (atomic_load(balance) >= sanitizer_buffer_pool_size_get()) {
+            if (!async) {
+                b->gpu_patch_buffer = NULL;
+                return ;
+            }
+            sanitizer_process_signal();
+        }
+        size_t num_records = sanitizer_gpu_patch_record_num_get();
       b->gpu_patch_buffer = (gpu_patch_buffer_t *) malloc(sizeof(gpu_patch_buffer_t));
       b->gpu_patch_buffer->records = malloc(num_records * sizeof(gpu_patch_record_t));
       PRINT("Sanitizer-> Allocate gpu_patch_record_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_t));

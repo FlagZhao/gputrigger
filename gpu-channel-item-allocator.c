@@ -68,7 +68,7 @@ channel_item_alloc_helper
     se = bichannel_pop(c, bichannel_direction_backward);
   }
   if (!se) {
-    se = (s_element_t *) malloc(size);
+    se = (s_element_t *) calloc(1, size);
     sstack_ptr_set(&se->next, 0);
   }
   return se;

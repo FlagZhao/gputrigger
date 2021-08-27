@@ -24,7 +24,6 @@ memory_access_callback
         )
 {
     gpu_patch_buffer_t *buffer = (gpu_patch_buffer_t *)user_data;
-    printf("testtest==============111111111");
     if (!sample_callback(buffer->block_sampling_frequency, buffer->block_sampling_offset)) {
         return SANITIZER_PATCH_SUCCESS;
     }
@@ -62,7 +61,6 @@ memory_access_callback
         record->size = size;
         record->flat_thread_id = get_flat_thread_id();
         record->flat_block_id = get_flat_block_id();
-        printf("testtest==============");
     }
 
     __syncwarp(active_mask);
@@ -194,7 +192,6 @@ sanitizer_block_enter_callback
         )
 {
     gpu_patch_buffer_t* buffer = (gpu_patch_buffer_t *)user_data;
-    printf("========block enter==========");
     if (!sample_callback(buffer->block_sampling_frequency, buffer->block_sampling_offset)) {
         return SANITIZER_PATCH_SUCCESS;
     }

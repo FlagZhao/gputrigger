@@ -36,7 +36,7 @@ gpu_queue_get
         __threadfence();
         buffer->tail_index = 0;
       } else {
-        // Other waps
+        // Other warps
         while (buffer->tail_index >= size);
       }
       tail_index = 0;
