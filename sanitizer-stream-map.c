@@ -167,7 +167,7 @@ sanitizer_stream_map_entry_new(CUstream stream)
 {
   sanitizer_stream_map_entry_t *e;
   e = (sanitizer_stream_map_entry_t *)
-    malloc(sizeof(sanitizer_stream_map_entry_t));
+    calloc(1, sizeof(sanitizer_stream_map_entry_t));
   e->stream = stream;
   e->left = NULL;
   e->right = NULL;

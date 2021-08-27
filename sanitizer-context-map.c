@@ -60,7 +60,7 @@ sanitizer_context_map_entry_new(CUcontext context)
 {
     sanitizer_context_map_entry_t *e;
     e = (sanitizer_context_map_entry_t *)
-            malloc(sizeof(sanitizer_context_map_entry_t));
+            calloc(1, sizeof(sanitizer_context_map_entry_t));
     e->context = context;
     e->priority_stream = NULL;
     e->kernel_stream = NULL;

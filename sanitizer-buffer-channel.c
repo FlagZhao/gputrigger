@@ -115,7 +115,7 @@ sanitizer_buffer_channel_alloc
 )
 {
   sanitizer_buffer_channel_t *b = 
-    malloc(sizeof(sanitizer_buffer_channel_t));
+    calloc(1, sizeof(sanitizer_buffer_channel_t));
 
   channel_init(b);
 

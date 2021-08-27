@@ -108,7 +108,7 @@ static cubin_id_map_entry_t *
 cubin_id_map_entry_new(uint32_t cubin_id, Elf_SymbolVector *vector)
 {
   cubin_id_map_entry_t *e;
-  e = (cubin_id_map_entry_t *)malloc(sizeof(cubin_id_map_entry_t));
+  e = (cubin_id_map_entry_t *)calloc(1, sizeof(cubin_id_map_entry_t));
   e->cubin_id = cubin_id;
   e->left = NULL;
   e->right = NULL;
@@ -159,7 +159,7 @@ cubin_id_map_lookup
   static __thread cubin_id_map_hash_entry_t *cubin_id_map_hash_table = NULL;
 
   if (cubin_id_map_hash_table == NULL) {
-    cubin_id_map_hash_table = (cubin_id_map_hash_entry_t *)malloc(
+    cubin_id_map_hash_table = (cubin_id_map_hash_entry_t *)calloc(1,
       CUPTI_CUBIN_ID_MAP_HASH_TABLE_SIZE * sizeof(cubin_id_map_hash_entry_t));
     memset(cubin_id_map_hash_table, 0, CUPTI_CUBIN_ID_MAP_HASH_TABLE_SIZE *
       sizeof(cubin_id_map_hash_entry_t));

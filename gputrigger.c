@@ -263,7 +263,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module, const vo
     cubin_id_map_insert(cubin_id, hpctoolkit_module_id, elf_vector);
 
     // Query cubin function offsets
-    uint64_t *addrs = (uint64_t *) malloc(sizeof(uint64_t) * elf_vector->nsymbols);
+    uint64_t *addrs = (uint64_t *) calloc(1, sizeof(uint64_t) * elf_vector->nsymbols);
     for (i = 0; i < elf_vector->nsymbols; ++i) {
         addrs[i] = 0;
         if (elf_vector->symbols[i] != 0) {
@@ -346,7 +346,7 @@ static void sanitizer_buffer_init(CUcontext context) {
       gpu_patch_records, sanitizer_gpu_patch_record_num * sanitizer_gpu_patch_record_size);
 
         // Allocate reset record
-        sanitizer_gpu_patch_buffer_reset = (gpu_patch_buffer_t *) malloc(sizeof(gpu_patch_buffer_t));
+        sanitizer_gpu_patch_buffer_reset = (gpu_patch_buffer_t *) calloc(1, sizeof(gpu_patch_buffer_t));
         sanitizer_gpu_patch_buffer_reset->full = 0;
         sanitizer_gpu_patch_buffer_reset->analysis = 0;
         sanitizer_gpu_patch_buffer_reset->head_index = 0;
@@ -402,7 +402,7 @@ static void sanitizer_buffer_init(CUcontext context) {
             PRINT("Sanitizer-> Allocate gpu_patch_records %p, size %zu\n", \
         gpu_patch_records, sanitizer_gpu_analysis_record_num * sanitizer_gpu_analysis_record_size);
 
-            sanitizer_gpu_patch_buffer_addr_read_reset = (gpu_patch_buffer_t *) malloc(sizeof(gpu_patch_buffer_t));
+            sanitizer_gpu_patch_buffer_addr_read_reset = (gpu_patch_buffer_t *) calloc(1, sizeof(gpu_patch_buffer_t));
             sanitizer_gpu_patch_buffer_addr_read_reset->full = 0;
             sanitizer_gpu_patch_buffer_addr_read_reset->analysis = 0;
             sanitizer_gpu_patch_buffer_addr_read_reset->head_index = 0;
@@ -435,7 +435,7 @@ static void sanitizer_buffer_init(CUcontext context) {
             PRINT("Sanitizer-> Allocate gpu_patch_records %p, size %zu\n", \
         gpu_patch_records, sanitizer_gpu_analysis_record_num * sanitizer_gpu_analysis_record_size);
 
-            sanitizer_gpu_patch_buffer_addr_write_reset = (gpu_patch_buffer_t *) malloc(sizeof(gpu_patch_buffer_t));
+            sanitizer_gpu_patch_buffer_addr_write_reset = (gpu_patch_buffer_t *) calloc(1, sizeof(gpu_patch_buffer_t));
             sanitizer_gpu_patch_buffer_addr_write_reset->full = 0;
             sanitizer_gpu_patch_buffer_addr_write_reset->analysis = 0;
             sanitizer_gpu_patch_buffer_addr_write_reset->head_index = 0;
@@ -519,7 +519,7 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context, San
     if (sanitizer_read_trace_ignore) {
         if (sanitizer_gpu_patch_aux_addr_dict_host == NULL) {
             sanitizer_gpu_patch_aux_addr_dict_host = (gpu_patch_aux_address_dict_t *)
-                    malloc(sizeof(gpu_patch_aux_address_dict_t));
+                    calloc(1, sizeof(gpu_patch_aux_address_dict_t));
         }
         memset(sanitizer_gpu_patch_aux_addr_dict_host->hit, 0, sizeof(uint32_t) * GPU_PATCH_ADDRESS_DICT_SIZE);
 
@@ -795,11 +795,11 @@ sanitizer_kernel_launch_sync(int32_t persistent_id, uint64_t correlation_id, CUc
 
     // Init a buffer on host
     if (sanitizer_gpu_patch_buffer_host == NULL) {
-        sanitizer_gpu_patch_buffer_host = (gpu_patch_buffer_t *) malloc(sizeof(gpu_patch_buffer_t));
+        sanitizer_gpu_patch_buffer_host = (gpu_patch_buffer_t *) calloc(1, sizeof(gpu_patch_buffer_t));
 
         if (sanitizer_gpu_analysis_blocks != 0) {
-            sanitizer_gpu_patch_buffer_addr_read_host = (gpu_patch_buffer_t *) malloc(sizeof(gpu_patch_buffer_t));
-            sanitizer_gpu_patch_buffer_addr_write_host = (gpu_patch_buffer_t *) malloc(sizeof(gpu_patch_buffer_t));
+            sanitizer_gpu_patch_buffer_addr_read_host = (gpu_patch_buffer_t *) calloc(1, sizeof(gpu_patch_buffer_t));
+            sanitizer_gpu_patch_buffer_addr_write_host = (gpu_patch_buffer_t *) calloc(1, sizeof(gpu_patch_buffer_t));
         }
     }
 

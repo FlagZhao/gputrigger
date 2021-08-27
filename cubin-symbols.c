@@ -154,10 +154,10 @@ sectionOffset
 
 Elf_SymbolVector *
 newSymbolsVector(int nsymbols) {
-    Elf_SymbolVector *v = (Elf_SymbolVector *) malloc(sizeof(Elf_SymbolVector));
+    Elf_SymbolVector *v = (Elf_SymbolVector *) calloc(1, sizeof(Elf_SymbolVector));
     v->nsymbols = nsymbols;
-    v->symbols = (unsigned long *) malloc(nsymbols * sizeof(unsigned long));
-    v->names = (char **) malloc(nsymbols * sizeof(char *));
+    v->symbols = (unsigned long *) calloc(1, nsymbols * sizeof(unsigned long));
+    v->names = (char **) calloc(1, nsymbols * sizeof(char *));
     return v;
 }
 
@@ -202,7 +202,7 @@ relocateSymbolsHelper
                         symbol_values->symbols[i] = s_offset;
                         char *s_name = elf_strptr(elf, shdr->sh_link, sym.st_name);
                         int s_len = strlen(s_name);
-                        symbol_values->names[i] = (char *) malloc((s_len + 1) * sizeof(char));
+                        symbol_values->names[i] = (char *) calloc(1, (s_len + 1) * sizeof(char));
                         strncpy(symbol_values->names[i], s_name, s_len);
                     }
                     default:

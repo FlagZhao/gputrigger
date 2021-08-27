@@ -58,8 +58,6 @@
 #include <lib/prof-lean/crypto-hash.h>
 #include <stdio.h>
 
-//#include <hpcrun/messages/messages.h>
-//#include <hpcrun/memory/hpcrun-malloc.h>
 
 #include "cubin-hash-map.h"
 
@@ -101,7 +99,7 @@ cubin_hash_map_entry_new
     cubin_hash_map_entry_t *e;
     unsigned int hash_length = crypto_hash_length();
     e = (cubin_hash_map_entry_t *)
-            malloc(sizeof(cubin_hash_map_entry_t) + hash_length);
+            calloc(1, sizeof(cubin_hash_map_entry_t) + hash_length);
     e->cubin_id = cubin_id;
     e->left = NULL;
     e->right = NULL;
