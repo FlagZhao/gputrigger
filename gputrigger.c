@@ -574,9 +574,6 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id, uint3
                 sanitizer_gpu_patch_record_num, sanitizer_analysis_async);
         gpu_patch_buffer = sanitizer_buffer_entry_gpu_patch_buffer_get(sanitizer_buffer);
     }
-    fprintf(stderr, "======");
-    fprintf(stderr, "\n%p\n", gpu_patch_buffer);
-    fprintf(stderr,"%p", sanitizer_buffer);
     // Move host buffer to a cache
     memcpy(gpu_patch_buffer, gpu_patch_buffer_host, offsetof(gpu_patch_buffer_t, records));
 
@@ -720,15 +717,12 @@ static void sanitizer_process_await() {
 static void *sanitizer_process_thread(void *arg) {
     pthread_cond_t *cond = &(sanitizer_thread.cond);
     pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
-    PRINT("=====Enter sanitizer_process_thread");
     while (!atomic_load(&sanitizer_process_stop_flag)) {
-        PRINT("\n=====Enter sanitizer_process_thread while loop\n");
         redshow_analysis_begin();
         sanitizer_buffer_channel_set_consume();
         redshow_analysis_end();
         sanitizer_process_await();
     }
-    PRINT("=====Exit sanitizer_process_thread loop");
     // Last records
     sanitizer_buffer_channel_set_consume();
 
@@ -1068,11 +1062,9 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
         int32_t persistent_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
         redshow_memset_register(persistent_id, correlation_id, md->address, md->value, md->width);
     } else if (domain == SANITIZER_CB_DOMAIN_SYNCHRONIZE) {
-        PRINT("========ANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED:");
         // TODO(Keren): sync data
         switch (cbid) {
             case SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED: {
-                PRINT("ANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED:");
                 sanitizer_device_flush();
                 sanitizer_device_shutdown();
                 break;
