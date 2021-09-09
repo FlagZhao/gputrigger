@@ -1,10 +1,13 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.10)
 project(gputrigger)
 
 include(CheckLanguage)
 check_language(CUDA)
 
 enable_language(CUDA)
+#@findhao: for debug
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
+
 
 if(${CMAKE_VERSION} VERSION_LESS "3.17.0") 
     find_package(CUDA REQUIRED)
@@ -31,45 +34,39 @@ endif()
 # find_package(MbedTLS)
 # find_package(LibElf)
 
-find_package(Threads REQUIRED)
-
-
 set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-
 set(SANITIZER_PATH ${CUDAToolkit_TARGET_DIR}/compute-sanitizer)
+# @findhao: drcctprof can not handle pthread
+# set(THREADS_PREFER_PTHREAD_FLAG ON)
+#@findhao: for debug
+# set(redshow_path /home/yhao24/opt/redshow_debug)
 
 if(NOT redshow_path)
     message(FATAL_ERROR "You need to specify redshow library path. ")
 endif()
 
-
-
-include_directories(${SANITIZER_PATH}/include/ ${CUDAToolkit_TARGET_DIR}/include/ ${redshow_path}/include ${redshow_path}/include/common ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/lib/prof-lean)
+include_directories(${SANITIZER_PATH}/include/ ${CUDAToolkit_TARGET_DIR}/include/ ${redshow_path}/include ${redshow_path}/include/common ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/lib/prof-lean )
 message(INFO ${SANITIZER_PATH} ${CUDAToolkit_NVCC_EXECUTABLE})
 
-set(CMAKE_CXX_STANDARD 17)
-set(SOURCE_FILES ${CMAKE_CURRENT_LIST_DIR}/gpu-patch.cu)
-link_libraries(-lsanitizer-public)
-link_libraries(-lpthread)
-link_directories(${redshow_path}/lib)
+find_library(redshow redshow HINTS ${redshow_path}/lib)
+
 aux_source_directory(${CMAKE_CURRENT_LIST_DIR}/lib/prof-lean DIR_PROF_LEAN)
 add_link_options(-L${SANITIZER_PATH}  -fPIC -shared)
-add_custom_target(gputrigger_patch.fatbin ALL ${CUDAToolkit_NVCC_EXECUTABLE} -o gputrigger_patch.fatbin ${CMAKE_CUDA_FLAGS} --fatbin --keep-device-functions -Xptxas --compile-as-tools-patch -g  -I${SANITIZER_PATH}/include/ -I${CUDAToolkit_TARGET_DIR}/include/ -c ${SOURCE_FILES} )
-set_property(TARGET gputrigger_patch.fatbin PROPERTY CUDA_ARCHITECTURES 75)
+add_custom_target(gputrigger_patch.fatbin ALL ${CUDAToolkit_NVCC_EXECUTABLE} -o gputrigger_patch.fatbin ${CMAKE_CUDA_FLAGS} --fatbin --keep-device-functions -Xptxas --compile-as-tools-patch -g  -I${SANITIZER_PATH}/include/ -I${CUDAToolkit_TARGET_DIR}/include/ -c ${CMAKE_CURRENT_LIST_DIR}/gpu-patch.cu )
+set_property(TARGET gputrigger_patch.fatbin PROPERTY CUDA_ARCHITECTURES "70;75;80;86")
 file(GLOB gputrigger_SRC CONFIGURE_DEPENDS "*.h" "*.cpp" "*.c")
 
 add_library(gputrigger SHARED ${gputrigger_SRC})
-
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-
 
 target_link_libraries(gputrigger PUBLIC
         Threads::Threads
         ${DIR_PROF_LEAN}
         -lmbedcrypto
-        -lredshow
+        ${redshow}
         -lelf
+        -lsanitizer-public
         )
 
 file(GLOB gputrigger_headers CONFIGURE_DEPENDS "*.h" )

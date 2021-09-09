@@ -1065,8 +1065,9 @@ static void sanitizer_subscribe_callback(void *userdata, Sanitizer_CallbackDomai
         // TODO(Keren): sync data
         switch (cbid) {
             case SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED: {
-                sanitizer_device_flush();
-                sanitizer_device_shutdown();
+                // @findhao: comment for api call in drcctprof
+                // sanitizer_device_flush();
+                // sanitizer_device_shutdown();
                 break;
             }
             default:
@@ -1141,10 +1142,9 @@ void sanitizer_process_init() {
 
     }
 }
-
-__attribute__((constructor))
+// @findhao: comment for debug
+// __attribute__((constructor))
 int sanitizer_callbacks_subscribe() {
-
 
     pid_t pid = getpid();
     printf("PID: %d\n", pid);
