@@ -59,19 +59,18 @@
 #include "sanitizer-context-map.h"
 //#include "cuda-api.h"
 #include <cuda.h>
+#include <cuda_runtime.h>
+#include <pthread.h>
+#include <redshow.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <pthread.h>
-
 #include "cubin-id-map.h"
 #include "cubin-symbols.h"
-#include <cuda_runtime.h>
-#include <redshow.h>
-#include <string.h>
-#include <sys/stat.h>
 
 static __thread gpu_cct_record_t *gpu_cct_records = NULL;
 static __thread bool sanitizer_stop_flag = false;
@@ -161,8 +160,7 @@ static sanitizer_thread_t sanitizer_thread;
 #define GPUTRIGGER_SANITIZER_CALL(fn, args)              \
   {                                                      \
     SanitizerResult status = SANITIZER_FN_NAME(fn) args; \
-    if (status != SANITIZER_SUCCESS)                     \
-    {                                                    \
+    if (status != SANITIZER_SUCCESS) {                   \
       sanitizer_error_report(status, #fn);               \
     }                                                    \
   }
@@ -181,24 +179,21 @@ static const int DEFAULT_DEVICE_BUFFER_SIZE = 1024 * 1024 * 8;
 // sanitizer function pointers for late binding
 //----------------------------------------------------------
 
-static void sanitizer_error_callback_dummy // __attribute__((unused))
-    (const char *type, const char *fn, const char *error_string)
-{
+static void sanitizer_error_callback_dummy  // __attribute__((unused))
+    (const char *type, const char *fn, const char *error_string) {
   PRINT("Sanitizer-> %s: function %s failed with error %s\n", type, fn,
         error_string);
   exit(-1);
 }
 
-static void sanitizer_error_report(SanitizerResult error, const char *fn)
-{
+static void sanitizer_error_report(SanitizerResult error, const char *fn) {
   const char *error_string;
   SANITIZER_FN_NAME(sanitizerGetResultString)
   (error, &error_string);
   sanitizer_error_callback("Sanitizer result error", fn, error_string);
 }
 
-void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size)
-{
+void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size) {
   sanitizer_gpu_patch_record_num = gpu_patch_record_num;
   sanitizer_gpu_analysis_record_num =
       gpu_patch_record_num * GPU_PATCH_WARP_SIZE * 4;
@@ -206,21 +201,16 @@ void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size)
 }
 
 static void sanitizer_load_callback(CUcontext context, CUmodule module,
-                                    const void *cubin, size_t cubin_size)
-{
+                                    const void *cubin, size_t cubin_size) {
   //    check patch file existence and permission
   const char *env_FATBIN_PATCH = getenv("GPUPUNK_PATCH");
   PRINT("The GPUPUNK_PATH is %s\n", env_FATBIN_PATCH);
-  if (env_FATBIN_PATCH)
-  {
-    if (access(env_FATBIN_PATCH, R_OK) != 0)
-    {
+  if (env_FATBIN_PATCH) {
+    if (access(env_FATBIN_PATCH, R_OK) != 0) {
       PRINT_ERR("ERROR: Can not access GPUPUNK_PATH\n");
       exit(-1);
     }
-  }
-  else
-  {
+  } else {
     PRINT_ERR("ERROR: no GPUPUNK_PATH env specified.");
     exit(-1);
   }
@@ -233,8 +223,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   cubin_hash_map_entry_t *cubin_hash_entry = cubin_hash_map_lookup(cubin_id);
   unsigned char *hash;
   unsigned int hash_len;
-  if (cubin_hash_entry == NULL)
-  {
+  if (cubin_hash_entry == NULL) {
     cubin_hash_map_insert(cubin_id, cubin, cubin_size);
     cubin_hash_entry = cubin_hash_map_lookup(cubin_id);
   }
@@ -248,8 +237,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   used += sprintf(&file_name[used], "%s", "./");
   used += sprintf(&file_name[used], "%s", "/cubins/");
   mkdir(file_name, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-  for (i = 0; i < hash_len; ++i)
-  {
+  for (i = 0; i < hash_len; ++i) {
     used += sprintf(&file_name[used], "%02x", hash[i]);
   }
   used += sprintf(&file_name[used], "%s", ".cubin");
@@ -267,11 +255,9 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   // Query cubin function offsets
   uint64_t *addrs =
       (uint64_t *)calloc(1, sizeof(uint64_t) * elf_vector->nsymbols);
-  for (i = 0; i < elf_vector->nsymbols; ++i)
-  {
+  for (i = 0; i < elf_vector->nsymbols; ++i) {
     addrs[i] = 0;
-    if (elf_vector->symbols[i] != 0)
-    {
+    if (elf_vector->symbols[i] != 0) {
       uint64_t pc;
       uint64_t size;
       // do not check error
@@ -313,19 +299,15 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
 }
 
 static void sanitizer_unload_callback(const void *module, const void *cubin,
-                                      size_t cubin_size)
-{
+                                      size_t cubin_size) {
   //    hpctoolkit_cumod_st_t *cumod = (hpctoolkit_cumod_st_t *) module;
   //    cuda_unload_callback(cumod->cubin_id);
   // We cannot unregister cubins
   // redshow_cubin_unregister(cumod->cubin_id, cumod->mod_id);
 }
 
-static void sanitizer_buffer_init(CUcontext context)
-{
-
-  if (sanitizer_gpu_patch_buffer_device != NULL)
-  {
+static void sanitizer_buffer_init(CUcontext context) {
+  if (sanitizer_gpu_patch_buffer_device != NULL) {
     // All entries have been initialized
     return;
   }
@@ -353,8 +335,7 @@ static void sanitizer_buffer_init(CUcontext context)
   sanitizer_gpu_patch_aux_addr_dict_reset =
       sanitizer_context_map_entry_aux_addr_dict_reset_get(entry);
 
-  if (sanitizer_gpu_patch_buffer_device == NULL)
-  {
+  if (sanitizer_gpu_patch_buffer_device == NULL) {
     // Allocated buffer
     void *gpu_patch_records = NULL;
     // gpu_patch_buffer
@@ -397,13 +378,11 @@ static void sanitizer_buffer_init(CUcontext context)
     sanitizer_gpu_patch_buffer_reset->aux = NULL;
     sanitizer_gpu_patch_buffer_reset->records = gpu_patch_records;
 
-    if (sanitizer_gpu_analysis_blocks != 0)
-    {
+    if (sanitizer_gpu_analysis_blocks != 0) {
       sanitizer_gpu_patch_buffer_reset->flags |= GPU_PATCH_ANALYSIS;
     }
 
-    if (sanitizer_read_trace_ignore)
-    {
+    if (sanitizer_read_trace_ignore) {
       void *gpu_patch_aux = NULL;
       // Use a dict to filter read trace
       GPUTRIGGER_SANITIZER_CALL(sanitizerAlloc,
@@ -434,8 +413,7 @@ static void sanitizer_buffer_init(CUcontext context)
     sanitizer_context_map_buffer_reset_update(context,
                                               sanitizer_gpu_patch_buffer_reset);
 
-    if (sanitizer_gpu_analysis_blocks != 0)
-    {
+    if (sanitizer_gpu_analysis_blocks != 0) {
       // Read
       GPUTRIGGER_SANITIZER_CALL(
           sanitizerAlloc,
@@ -444,10 +422,11 @@ static void sanitizer_buffer_init(CUcontext context)
       GPUTRIGGER_SANITIZER_CALL(sanitizerMemset,
                                 (sanitizer_gpu_patch_buffer_addr_read_device, 0,
                                  sizeof(gpu_patch_buffer_t), priority_stream));
-      PRINT("Sanitizer-> Allocate sanitizer_gpu_patch_buffer_addr_read_device "
-            "%p, size %zu\n",
-            sanitizer_gpu_patch_buffer_addr_read_device,
-            sizeof(gpu_patch_buffer_t));
+      PRINT(
+          "Sanitizer-> Allocate sanitizer_gpu_patch_buffer_addr_read_device "
+          "%p, size %zu\n",
+          sanitizer_gpu_patch_buffer_addr_read_device,
+          sizeof(gpu_patch_buffer_t));
 
       // gpu_patch_buffer_t->records
       GPUTRIGGER_SANITIZER_CALL(sanitizerAlloc,
@@ -494,10 +473,11 @@ static void sanitizer_buffer_init(CUcontext context)
       GPUTRIGGER_SANITIZER_CALL(
           sanitizerMemset, (sanitizer_gpu_patch_buffer_addr_write_device, 0,
                             sizeof(gpu_patch_buffer_t), priority_stream));
-      PRINT("Sanitizer-> Allocate sanitizer_gpu_patch_buffer_addr_write_device "
-            "%p, size %zu\n",
-            sanitizer_gpu_patch_buffer_addr_write_device,
-            sizeof(gpu_patch_buffer_t));
+      PRINT(
+          "Sanitizer-> Allocate sanitizer_gpu_patch_buffer_addr_write_device "
+          "%p, size %zu\n",
+          sanitizer_gpu_patch_buffer_addr_write_device,
+          sizeof(gpu_patch_buffer_t));
 
       // gpu_patch_buffer_t->records
       GPUTRIGGER_SANITIZER_CALL(sanitizerAlloc,
@@ -552,15 +532,13 @@ static void sanitizer_buffer_init(CUcontext context)
   }
 }
 
-static Sanitizer_StreamHandle sanitizer_priority_stream_get(CUcontext context)
-{
+static Sanitizer_StreamHandle sanitizer_priority_stream_get(CUcontext context) {
   sanitizer_context_map_entry_t *entry = sanitizer_context_map_init(context);
 
   Sanitizer_StreamHandle priority_stream_handle =
       sanitizer_context_map_entry_priority_stream_handle_get(entry);
 
-  if (priority_stream_handle == NULL)
-  {
+  if (priority_stream_handle == NULL) {
     // First time
     // Update priority stream
     CUstream priority_stream =
@@ -580,9 +558,7 @@ static void
 sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context,
                                  Sanitizer_StreamHandle priority_stream,
                                  CUfunction function, dim3 grid_size,
-                                 dim3 block_size, bool kernel_sampling)
-{
-
+                                 dim3 block_size, bool kernel_sampling) {
   int grid_dim = grid_size.x * grid_size.y * grid_size.z;
   int block_dim = block_size.x * block_size.y * block_size.z;
   //    @todo sampling frequency
@@ -609,8 +585,7 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context,
                              sanitizer_gpu_patch_buffer_reset,
                              sizeof(gpu_patch_buffer_t), priority_stream));
 
-  if (sanitizer_gpu_analysis_blocks != 0)
-  {
+  if (sanitizer_gpu_analysis_blocks != 0) {
     GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyHostToDeviceAsync,
                               (sanitizer_gpu_patch_buffer_addr_read_device,
                                sanitizer_gpu_patch_buffer_addr_read_reset,
@@ -621,10 +596,8 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context,
                                sizeof(gpu_patch_buffer_t), priority_stream));
   }
 
-  if (sanitizer_read_trace_ignore)
-  {
-    if (sanitizer_gpu_patch_aux_addr_dict_host == NULL)
-    {
+  if (sanitizer_read_trace_ignore) {
+    if (sanitizer_gpu_patch_aux_addr_dict_host == NULL) {
       sanitizer_gpu_patch_aux_addr_dict_host =
           (gpu_patch_aux_address_dict_t *)calloc(
               1, sizeof(gpu_patch_aux_address_dict_t));
@@ -651,15 +624,13 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context,
   GPUTRIGGER_SANITIZER_CALL(sanitizerStreamSynchronize, (priority_stream));
 }
 
-static Sanitizer_StreamHandle sanitizer_kernel_stream_get(CUcontext context)
-{
+static Sanitizer_StreamHandle sanitizer_kernel_stream_get(CUcontext context) {
   sanitizer_context_map_entry_t *entry = sanitizer_context_map_init(context);
 
   Sanitizer_StreamHandle kernel_stream_handle =
       sanitizer_context_map_entry_kernel_stream_handle_get(entry);
 
-  if (kernel_stream_handle == NULL)
-  {
+  if (kernel_stream_handle == NULL) {
     // First time
     // Update kernel stream
     CUstream kernel_stream =
@@ -679,8 +650,7 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
                            uint32_t gpu_patch_type, size_t record_size,
                            gpu_patch_buffer_t *gpu_patch_buffer_host,
                            gpu_patch_buffer_t *gpu_patch_buffer_device,
-                           Sanitizer_StreamHandle priority_stream)
-{
+                           Sanitizer_StreamHandle priority_stream) {
   sanitizer_buffer_t *sanitizer_buffer = sanitizer_buffer_channel_produce(
       sanitizer_thread_id_local, cubin_id, mod_id, persistent_id,
       correlation_id, gpu_patch_type, sanitizer_gpu_patch_record_num,
@@ -689,8 +659,7 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
       sanitizer_buffer_entry_gpu_patch_buffer_get(sanitizer_buffer);
 
   // If sync mode and not enough buffer, empty current buffer
-  if (gpu_patch_buffer == NULL && !sanitizer_analysis_async)
-  {
+  if (gpu_patch_buffer == NULL && !sanitizer_analysis_async) {
     sanitizer_buffer_channel_t *channel =
         sanitizer_buffer_channel_get(gpu_patch_type);
     sanitizer_buffer_channel_consume(channel);
@@ -709,8 +678,7 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
   // Copy all records to the cache
   size_t num_records = gpu_patch_buffer_host->head_index;
   void *gpu_patch_record_device = gpu_patch_buffer_host->records;
-  if (num_records != 0)
-  {
+  if (num_records != 0) {
     GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
                               (gpu_patch_buffer->records,
                                gpu_patch_record_device,
@@ -739,10 +707,8 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
                                      uint32_t mod_id,
                                      Sanitizer_StreamHandle priority_stream,
                                      Sanitizer_StreamHandle kernel_stream,
-                                     bool analysis_end)
-{
-  if (analysis_end)
-  {
+                                     bool analysis_end) {
+  if (analysis_end) {
     GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
                               (sanitizer_gpu_patch_buffer_addr_read_host,
                                sanitizer_gpu_patch_buffer_addr_read_device,
@@ -753,10 +719,8 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
                                sanitizer_gpu_patch_buffer_addr_write_device,
                                sizeof(gpu_patch_buffer_t), priority_stream));
 
-    while (sanitizer_gpu_patch_buffer_addr_read_host->num_threads != 0)
-    {
-      if (sanitizer_gpu_patch_buffer_addr_read_host->full != 0)
-      {
+    while (sanitizer_gpu_patch_buffer_addr_read_host->num_threads != 0) {
+      if (sanitizer_gpu_patch_buffer_addr_read_host->full != 0) {
         PRINT("Sanitizer-> read analysis address\n");
         buffer_analyze(
             persistent_id, correlation_id, cubin_id, mod_id,
@@ -765,8 +729,7 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
             sanitizer_gpu_patch_buffer_addr_read_device, priority_stream);
       }
 
-      if (sanitizer_gpu_patch_buffer_addr_write_host->full != 0)
-      {
+      if (sanitizer_gpu_patch_buffer_addr_write_host->full != 0) {
         PRINT("Sanitizer-> write analysis address\n");
         buffer_analyze(
             persistent_id, correlation_id, cubin_id, mod_id,
@@ -815,8 +778,7 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
                              sanitizer_gpu_patch_buffer_addr_read_device,
                              sizeof(gpu_patch_buffer_t), priority_stream));
 
-  if (sanitizer_gpu_patch_buffer_addr_read_host->full != 0)
-  {
+  if (sanitizer_gpu_patch_buffer_addr_read_host->full != 0) {
     PRINT("Sanitizer-> read analysis address\n");
     buffer_analyze(
         persistent_id, correlation_id, cubin_id, mod_id,
@@ -832,8 +794,7 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
                              sanitizer_gpu_patch_buffer_addr_write_device,
                              sizeof(gpu_patch_buffer_t), priority_stream));
 
-  if (sanitizer_gpu_patch_buffer_addr_write_host->full != 0)
-  {
+  if (sanitizer_gpu_patch_buffer_addr_write_host->full != 0) {
     PRINT("Sanitizer-> write analysis address\n");
     buffer_analyze(
         persistent_id, correlation_id, cubin_id, mod_id,
@@ -844,13 +805,17 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
     PRINT("Sanitizer-> analysis gpu in process\n");
   }
 }
+//******************************************************************************
+// gpupunk function triggers
+//******************************************************************************
+
+void gpupunk_memory_register_trigger(uint64_t start, uint64_t end) {}
 
 //******************************************************************************
 // asynchronous process thread
 //******************************************************************************
 
-void sanitizer_process_signal()
-{
+void sanitizer_process_signal() {
   pthread_cond_t *cond = &(sanitizer_thread.cond);
   pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
 
@@ -863,15 +828,13 @@ void sanitizer_process_signal()
   pthread_mutex_unlock(mutex);
 }
 
-static void sanitizer_process_await()
-{
+static void sanitizer_process_await() {
   pthread_cond_t *cond = &(sanitizer_thread.cond);
   pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
 
   pthread_mutex_lock(mutex);
 
-  while (!atomic_load(&sanitizer_process_awake_flag))
-  {
+  while (!atomic_load(&sanitizer_process_awake_flag)) {
     pthread_cond_wait(cond, mutex);
   }
 
@@ -880,12 +843,10 @@ static void sanitizer_process_await()
   pthread_mutex_unlock(mutex);
 }
 
-static void *sanitizer_process_thread(void *arg)
-{
+static void *sanitizer_process_thread(void *arg) {
   pthread_cond_t *cond = &(sanitizer_thread.cond);
   pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
-  while (!atomic_load(&sanitizer_process_stop_flag))
-  {
+  while (!atomic_load(&sanitizer_process_stop_flag)) {
     redshow_analysis_begin();
     sanitizer_buffer_channel_set_consume();
     redshow_analysis_end();
@@ -908,13 +869,11 @@ static void *sanitizer_process_thread(void *arg)
   return NULL;
 }
 
-size_t sanitizer_gpu_patch_record_num_get()
-{
+size_t sanitizer_gpu_patch_record_num_get() {
   return sanitizer_gpu_patch_record_num;
 }
 
-size_t sanitizer_gpu_analysis_record_num_get()
-{
+size_t sanitizer_gpu_analysis_record_num_get() {
   return sanitizer_gpu_analysis_record_num;
 }
 
@@ -930,8 +889,7 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
                                          CUfunction function,
                                          Sanitizer_StreamHandle priority_stream,
                                          Sanitizer_StreamHandle kernel_stream,
-                                         dim3 grid_size, dim3 block_size)
-{
+                                         dim3 grid_size, dim3 block_size) {
   // Look up module id
   hpctoolkit_cumod_st_t *cumod = (hpctoolkit_cumod_st_t *)module;
   uint32_t cubin_id = cumod->cubin_id;
@@ -947,19 +905,15 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
   size_t num_left_threads = 0;
 
   // If block sampling is set
-  if (block_sampling_frequency != 0)
-  {
+  if (block_sampling_frequency != 0) {
     // Uniform sampling
     int sampling_offset =
         sanitizer_gpu_patch_buffer_reset->block_sampling_offset;
     int mod_blocks = grid_dim % block_sampling_frequency;
     int sampling_blocks = 0;
-    if (mod_blocks == 0)
-    {
+    if (mod_blocks == 0) {
       sampling_blocks = (grid_dim - 1) / block_sampling_frequency + 1;
-    }
-    else
-    {
+    } else {
       sampling_blocks = (grid_dim - 1) / block_sampling_frequency +
                         (sampling_offset >= mod_blocks ? 0 : 1);
     }
@@ -967,13 +921,11 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
   }
 
   // Init a buffer on host
-  if (sanitizer_gpu_patch_buffer_host == NULL)
-  {
+  if (sanitizer_gpu_patch_buffer_host == NULL) {
     sanitizer_gpu_patch_buffer_host =
         (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
 
-    if (sanitizer_gpu_analysis_blocks != 0)
-    {
+    if (sanitizer_gpu_analysis_blocks != 0) {
       sanitizer_gpu_patch_buffer_addr_read_host =
           (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
       sanitizer_gpu_patch_buffer_addr_write_host =
@@ -986,8 +938,7 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
         sanitizer_gpu_patch_buffer_host->head_index,
         sanitizer_gpu_patch_buffer_host->tail_index, num_threads);
 
-  while (true)
-  {
+  while (true) {
     // Copy buffer
     GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
                               (sanitizer_gpu_patch_buffer_host,
@@ -1002,24 +953,21 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
           sanitizer_gpu_patch_buffer_host->tail_index,
           sanitizer_gpu_patch_buffer_host->num_threads, num_left_threads);
 
-    if (sanitizer_gpu_analysis_blocks != 0)
-    {
+    if (sanitizer_gpu_analysis_blocks != 0) {
       sanitizer_kernel_analyze(persistent_id, correlation_id, cubin_id, mod_id,
                                priority_stream, kernel_stream, false);
     }
 
     // Wait until the buffer is full or the kernel is finished
     if (!(sanitizer_gpu_patch_buffer_host->num_threads == num_left_threads ||
-          sanitizer_gpu_patch_buffer_host->full))
-    {
+          sanitizer_gpu_patch_buffer_host->full)) {
       continue;
     }
 
     // Reserve for debugging correctness
     PRINT("num_records %zu\n", num_records);
 
-    if (sanitizer_gpu_analysis_blocks == 0)
-    {
+    if (sanitizer_gpu_analysis_blocks == 0) {
       buffer_analyze(persistent_id, correlation_id, cubin_id, mod_id,
                      sanitizer_gpu_patch_type, sanitizer_gpu_patch_record_size,
                      sanitizer_gpu_patch_buffer_host,
@@ -1029,22 +977,19 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
     }
 
     // Awake background thread
-    if (sanitizer_analysis_async)
-    {
+    if (sanitizer_analysis_async) {
       // If multiple application threads are created, it might miss a signal,
       // but we finally still process all the records
       sanitizer_process_signal();
     }
 
     // Finish all the threads
-    if (sanitizer_gpu_patch_buffer_host->num_threads == num_left_threads)
-    {
+    if (sanitizer_gpu_patch_buffer_host->num_threads == num_left_threads) {
       break;
     }
   }
 
-  if (sanitizer_gpu_analysis_blocks != 0)
-  {
+  if (sanitizer_gpu_analysis_blocks != 0) {
     // Kernel is done
     sanitizer_kernel_analyze(persistent_id, correlation_id, cubin_id, mod_id,
                              priority_stream, kernel_stream, true);
@@ -1053,23 +998,20 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
   // To ensure previous copies are done
   GPUTRIGGER_SANITIZER_CALL(sanitizerStreamSynchronize, (priority_stream));
 
-  if (!sanitizer_analysis_async)
-  {
+  if (!sanitizer_analysis_async) {
     // Empty current buffer
     sanitizer_buffer_channel_t *channel =
         sanitizer_buffer_channel_get(sanitizer_gpu_patch_type);
     sanitizer_buffer_channel_consume(channel);
 
-    if (sanitizer_gpu_analysis_blocks != 0)
-    {
+    if (sanitizer_gpu_analysis_blocks != 0) {
       channel = sanitizer_buffer_channel_get(sanitizer_gpu_analysis_type);
       sanitizer_buffer_channel_consume(channel);
     }
   }
 }
 
-void sanitizer_callbacks_unsubscribe()
-{
+void sanitizer_callbacks_unsubscribe() {
   //    sanitizer_correlation_callback = 0;
   GPUTRIGGER_SANITIZER_CALL(sanitizerUnsubscribe,
                             (sanitizer_subscriber_handle));
@@ -1105,20 +1047,15 @@ void sanitizer_callbacks_unsubscribe()
 static void sanitizer_subscribe_callback(void *userdata,
                                          Sanitizer_CallbackDomain domain,
                                          Sanitizer_CallbackId cbid,
-                                         const void *cbdata)
-{
-
-  if (!sanitizer_stop_flag)
-  {
+                                         const void *cbdata) {
+  if (!sanitizer_stop_flag) {
     sanitizer_thread_id_local = atomic_fetch_add(&sanitizer_thread_id, 1);
     sanitizer_stop_flag = true;
   }
 
-  if (domain == SANITIZER_CB_DOMAIN_DRIVER_API)
-  {
+  if (domain == SANITIZER_CB_DOMAIN_DRIVER_API) {
     Sanitizer_CallbackData *cb = (Sanitizer_CallbackData *)cbdata;
-    if (cb->callbackSite == SANITIZER_API_ENTER)
-    {
+    if (cb->callbackSite == SANITIZER_API_ENTER) {
       // Reserve for debug
       //            PRINT("Sanitizer-> Thread %u enter context %p function
       //            %s\n", sanitizer_thread_id_local, cb->context,
@@ -1126,9 +1063,7 @@ static void sanitizer_subscribe_callback(void *userdata,
       sanitizer_context_map_context_lock(cb->context,
                                          sanitizer_thread_id_local);
       sanitizer_thread_context = cb->context;
-    }
-    else
-    {
+    } else {
       // Reserve for debug
       //            PRINT("Sanitizer-> Thread %u exit context %p function %s\n",
       //            sanitizer_thread_id_local, cb->context, cb->functionName);
@@ -1142,92 +1077,77 @@ static void sanitizer_subscribe_callback(void *userdata,
   }
 
   // XXX(keren): assume single cpu thread per stream
-  if (domain == SANITIZER_CB_DOMAIN_RESOURCE)
-  {
-    switch (cbid)
-    {
-    case SANITIZER_CBID_RESOURCE_MODULE_LOADED:
-    {
-      // single thread
-      Sanitizer_ResourceModuleData *md = (Sanitizer_ResourceModuleData *)cbdata;
-      sanitizer_load_callback(md->context, md->module, md->pCubin,
-                              md->cubinSize);
-      break;
-    }
-    case SANITIZER_CBID_RESOURCE_MODULE_UNLOAD_STARTING:
-    {
-      // single thread
-      Sanitizer_ResourceModuleData *md = (Sanitizer_ResourceModuleData *)cbdata;
-      sanitizer_unload_callback(md->module, md->pCubin, md->cubinSize);
-      break;
-    }
-    case SANITIZER_CBID_RESOURCE_STREAM_CREATED:
-    {
-      // single thread
-      PRINT("Sanitizer-> Stream create starting\n");
-      break;
-    }
-    case SANITIZER_CBID_RESOURCE_STREAM_DESTROY_STARTING:
-    {
-      // single thread
-      // TODO
-      PRINT("Sanitizer-> Stream destroy starting\n");
-      break;
-    }
-    case SANITIZER_CBID_RESOURCE_CONTEXT_CREATION_FINISHED:
-    {
-      break;
-    }
-    case SANITIZER_CBID_RESOURCE_CONTEXT_DESTROY_STARTING:
-    {
-      // single thread
-      // TODO
-      PRINT("Sanitizer-> Context destroy starting\n");
-      break;
-    }
-    case SANITIZER_CBID_RESOURCE_HOST_MEMORY_ALLOC:
-    {
-      Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
-      PRINT("Sanitizer-> Allocate memory address %p, size %zu\n",
-            (void *)md->address, md->size);
-      break;
-    }
-    case SANITIZER_CBID_RESOURCE_HOST_MEMORY_FREE:
-    {
-      Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
-      PRINT("Sanitizer-> Free memory address %p, size %zu\n",
-            (void *)md->address, md->size);
-      break;
-    }
-    case SANITIZER_CBID_RESOURCE_DEVICE_MEMORY_ALLOC:
-    {
-      Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
-      int32_t memory_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
-      int32_t host_op_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
-      redshow_memory_register(memory_id, host_op_id, md->address,
-                              md->address + md->size);
-      PRINT("Sanitizer-> Allocate memory address %p, size %zu, op %u, id %d\n",
-            (void *)md->address, md->size, host_op_id, memory_id);
-      break;
-    }
-    case SANITIZER_CBID_RESOURCE_DEVICE_MEMORY_FREE:
-    {
-      Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
-      uint64_t correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
-      redshow_memory_unregister(correlation_id, md->address,
+  if (domain == SANITIZER_CB_DOMAIN_RESOURCE) {
+    switch (cbid) {
+      case SANITIZER_CBID_RESOURCE_MODULE_LOADED: {
+        // single thread
+        Sanitizer_ResourceModuleData *md = (Sanitizer_ResourceModuleData *)cbdata;
+        sanitizer_load_callback(md->context, md->module, md->pCubin,
+                                md->cubinSize);
+        break;
+      }
+      case SANITIZER_CBID_RESOURCE_MODULE_UNLOAD_STARTING: {
+        // single thread
+        Sanitizer_ResourceModuleData *md = (Sanitizer_ResourceModuleData *)cbdata;
+        sanitizer_unload_callback(md->module, md->pCubin, md->cubinSize);
+        break;
+      }
+      case SANITIZER_CBID_RESOURCE_STREAM_CREATED: {
+        // single thread
+        PRINT("Sanitizer-> Stream create starting\n");
+        break;
+      }
+      case SANITIZER_CBID_RESOURCE_STREAM_DESTROY_STARTING: {
+        // single thread
+        // TODO
+        PRINT("Sanitizer-> Stream destroy starting\n");
+        break;
+      }
+      case SANITIZER_CBID_RESOURCE_CONTEXT_CREATION_FINISHED: {
+        break;
+      }
+      case SANITIZER_CBID_RESOURCE_CONTEXT_DESTROY_STARTING: {
+        // single thread
+        // TODO
+        PRINT("Sanitizer-> Context destroy starting\n");
+        break;
+      }
+      case SANITIZER_CBID_RESOURCE_HOST_MEMORY_ALLOC: {
+        Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
+        PRINT("Sanitizer-> Allocate memory address %p, size %zu\n",
+              (void *)md->address, md->size);
+        break;
+      }
+      case SANITIZER_CBID_RESOURCE_HOST_MEMORY_FREE: {
+        Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
+        PRINT("Sanitizer-> Free memory address %p, size %zu\n",
+              (void *)md->address, md->size);
+        break;
+      }
+      case SANITIZER_CBID_RESOURCE_DEVICE_MEMORY_ALLOC: {
+        Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
+        int32_t memory_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
+        uint64_t host_op_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
+        redshow_memory_register(memory_id, host_op_id, md->address,
                                 md->address + md->size);
-      PRINT("Sanitizer-> Free memory address %p, size %zu, op %lu\n",
-            (void *)md->address, md->size, correlation_id);
-      break;
+        PRINT("Sanitizer-> Allocate memory address %p, size %zu, op %u, id %d\n",
+              (void *)md->address, md->size, host_op_id, memory_id);
+        break;
+      }
+      case SANITIZER_CBID_RESOURCE_DEVICE_MEMORY_FREE: {
+        Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
+        uint64_t host_op_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
+        redshow_memory_unregister(host_op_id, md->address,
+                                  md->address + md->size);
+        PRINT("Sanitizer-> Free memory address %p, size %zu, op %lu\n",
+              (void *)md->address, md->size, host_op_id);
+        break;
+      }
+      default: {
+        break;
+      }
     }
-    default:
-    {
-      break;
-    }
-    }
-  }
-  else if (domain == SANITIZER_CB_DOMAIN_LAUNCH)
-  {
+  } else if (domain == SANITIZER_CB_DOMAIN_LAUNCH) {
     Sanitizer_LaunchData *ld = (Sanitizer_LaunchData *)cbdata;
     static __thread dim3 grid_size = {0, 0, 0};
     static __thread dim3 block_size = {0, 0, 0};
@@ -1236,8 +1156,7 @@ static void sanitizer_subscribe_callback(void *userdata,
     static __thread bool kernel_sampling = true;
     static __thread uint64_t correlation_id = 0;
     static __thread int32_t persistent_id = 0;
-    if (cbid == SANITIZER_CBID_LAUNCH_BEGIN)
-    {
+    if (cbid == SANITIZER_CBID_LAUNCH_BEGIN) {
       // Use function list to filter functions
       // Get a place holder cct node
       correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
@@ -1252,11 +1171,12 @@ static void sanitizer_subscribe_callback(void *userdata,
       block_size.x = ld->blockDim_x;
       block_size.y = ld->blockDim_y;
       block_size.z = ld->blockDim_z;
-      PRINT("Sanitizer-> Launch kernel %s <%d, %d, %d>:<%d, %d, %d>, op %lu, "
-            "id %d, mod_id %u\n",
-            ld->functionName, ld->gridDim_x, ld->gridDim_y, ld->gridDim_z,
-            ld->blockDim_x, ld->blockDim_y, ld->blockDim_z, correlation_id,
-            persistent_id, ((hpctoolkit_cumod_st_t *)ld->module)->mod_id);
+      PRINT(
+          "Sanitizer-> Launch kernel %s <%d, %d, %d>:<%d, %d, %d>, op %lu, "
+          "id %d, mod_id %u\n",
+          ld->functionName, ld->gridDim_x, ld->gridDim_y, ld->gridDim_z,
+          ld->blockDim_x, ld->blockDim_y, ld->blockDim_z, correlation_id,
+          persistent_id, ((hpctoolkit_cumod_st_t *)ld->module)->mod_id);
       // thread-safe
       // Create a high priority stream for the context at the first time
       // TODO(Keren): change stream->hstream
@@ -1266,16 +1186,12 @@ static void sanitizer_subscribe_callback(void *userdata,
       sanitizer_kernel_launch_callback(correlation_id, ld->context,
                                        priority_stream, ld->function, grid_size,
                                        block_size, kernel_sampling);
-    }
-    else if (cbid == SANITIZER_CBID_LAUNCH_AFTER_SYSCALL_SETUP)
-    {
+    } else if (cbid == SANITIZER_CBID_LAUNCH_AFTER_SYSCALL_SETUP) {
       //            @todo fix this in the future
       //            if (sanitizer_gpu_analysis_blocks != 0 && kernel_sampling) {
       //                sanitizer_kernel_launch(ld->context);
       //            }
-    }
-    else if (cbid == SANITIZER_CBID_LAUNCH_END)
-    {
+    } else if (cbid == SANITIZER_CBID_LAUNCH_END) {
       //            if (kernel_sampling) {
       PRINT("Sanitizer-> Sync kernel %s\n", ld->functionName);
 
@@ -1297,77 +1213,63 @@ static void sanitizer_subscribe_callback(void *userdata,
 
       PRINT("Sanitizer-> kernel %s done\n", ld->functionName);
     }
-  }
-  else if (domain == SANITIZER_CB_DOMAIN_MEMCPY)
-  {
+  } else if (domain == SANITIZER_CB_DOMAIN_MEMCPY) {
     Sanitizer_MemcpyData *md = (Sanitizer_MemcpyData *)cbdata;
 
     bool src_host = false;
     bool dst_host = false;
 
-    if (md->direction == SANITIZER_MEMCPY_DIRECTION_HOST_TO_DEVICE)
-    {
+    if (md->direction == SANITIZER_MEMCPY_DIRECTION_HOST_TO_DEVICE) {
       src_host = true;
-    }
-    else if (md->direction == SANITIZER_MEMCPY_DIRECTION_HOST_TO_HOST)
-    {
+    } else if (md->direction == SANITIZER_MEMCPY_DIRECTION_HOST_TO_HOST) {
       src_host = true;
       dst_host = true;
-    }
-    else if (md->direction == SANITIZER_MEMCPY_DIRECTION_DEVICE_TO_HOST)
-    {
+    } else if (md->direction == SANITIZER_MEMCPY_DIRECTION_DEVICE_TO_HOST) {
       dst_host = true;
     }
 
     uint64_t correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
     int32_t persistent_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
-    PRINT("Sanitizer-> Memcpy async %d direction %d from %p to %p, op %lu, id "
-          "%d\n",
-          md->isAsync, md->direction, (void *)md->srcAddress,
-          (void *)md->dstAddress, correlation_id, persistent_id);
+    PRINT(
+        "Sanitizer-> Memcpy async %d direction %d from %p to %p, op %lu, id "
+        "%d\n",
+        md->isAsync, md->direction, (void *)md->srcAddress,
+        (void *)md->dstAddress, correlation_id, persistent_id);
 
     // Avoid memcpy to symbol without allocation
     // Let redshow update shadow memory
     redshow_memcpy_register(persistent_id, correlation_id, src_host,
                             md->srcAddress, dst_host, md->dstAddress, md->size);
-  }
-  else if (domain == SANITIZER_CB_DOMAIN_MEMSET)
-  {
+  } else if (domain == SANITIZER_CB_DOMAIN_MEMSET) {
     Sanitizer_MemsetData *md = (Sanitizer_MemsetData *)cbdata;
 
     uint64_t correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
     int32_t persistent_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
     redshow_memset_register(persistent_id, correlation_id, md->address,
                             md->value, md->width);
-  }
-  else if (domain == SANITIZER_CB_DOMAIN_SYNCHRONIZE)
-  {
+  } else if (domain == SANITIZER_CB_DOMAIN_SYNCHRONIZE) {
     // TODO(Keren): sync data
-    switch (cbid)
-    {
-    case SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED:
-    {
-      // @findhao: comment for api call in drcctprof
-      sanitizer_device_flush();
-      sanitizer_device_shutdown();
-      break;
-    }
-    default:
-      break;
+    switch (cbid) {
+      case SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED: {
+        // @findhao: comment for api call in drcctprof
+        sanitizer_device_flush();
+        sanitizer_device_shutdown();
+        break;
+      }
+      default:
+        break;
     }
   }
 }
 
-static void output_dir_config(char *dir_name, char *suffix)
-{
+static void output_dir_config(char *dir_name, char *suffix) {
   size_t used = 0;
   used += sprintf(&dir_name[used], "%s", "./");
   used += sprintf(&dir_name[used], "%s", suffix);
   mkdir(dir_name, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 }
 
-void sanitizer_value_pattern_analysis_enable()
-{
+void sanitizer_value_pattern_analysis_enable() {
   redshow_analysis_enable(REDSHOW_ANALYSIS_VALUE_PATTERN);
   char dir_name[PATH_MAX];
   output_dir_config(dir_name, "/value_pattern/");
@@ -1375,8 +1277,7 @@ void sanitizer_value_pattern_analysis_enable()
   sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_t);
 }
 
-void sanitizer_memory_page_analysis_enable()
-{
+void sanitizer_memory_page_analysis_enable() {
   redshow_analysis_enable(REDSHOW_ANALYSIS_MEMORY_PAGE);
   char dir_name[PATH_MAX];
   output_dir_config(dir_name, "/memory_page/");
@@ -1384,27 +1285,21 @@ void sanitizer_memory_page_analysis_enable()
   sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_t);
 }
 
-void sanitizer_device_flush()
-{
-  if (sanitizer_stop_flag)
-  {
+void sanitizer_device_flush() {
+  if (sanitizer_stop_flag) {
     sanitizer_stop_flag_unset();
-    if (sanitizer_analysis_async)
-    {
+    if (sanitizer_analysis_async) {
       // Spin wait
       sanitizer_buffer_channel_flush(sanitizer_gpu_patch_type);
-      if (sanitizer_gpu_analysis_blocks != 0)
-      {
+      if (sanitizer_gpu_analysis_blocks != 0) {
         sanitizer_buffer_channel_flush(sanitizer_gpu_analysis_type);
       }
       sanitizer_process_signal();
       while (sanitizer_buffer_channel_finish(sanitizer_gpu_patch_type) ==
-             false)
-      {
+             false) {
       }
       while (sanitizer_buffer_channel_finish(sanitizer_gpu_analysis_type) ==
-             false)
-      {
+             false) {
       }
     }
     // Attribute performance metrics to CCTs
@@ -1412,19 +1307,16 @@ void sanitizer_device_flush()
   }
 }
 
-void sanitizer_device_shutdown()
-{
+void sanitizer_device_shutdown() {
   sanitizer_callbacks_unsubscribe();
 
-  if (sanitizer_analysis_async)
-  {
+  if (sanitizer_analysis_async) {
     atomic_store(&sanitizer_process_stop_flag, true);
     // Spin wait
     sanitizer_buffer_channel_flush(sanitizer_gpu_patch_type);
     sanitizer_process_signal();
     while (sanitizer_buffer_channel_finish(sanitizer_gpu_analysis_type) ==
-           false)
-    {
+           false) {
     }
   }
 
@@ -1435,11 +1327,9 @@ void sanitizer_device_shutdown()
     ;
 }
 
-void sanitizer_process_init()
-{
+void sanitizer_process_init() {
   // XXX(Keren): value flow analysis must be sync
-  if (sanitizer_analysis_async)
-  {
+  if (sanitizer_analysis_async) {
     pthread_t *thread = &(sanitizer_thread.thread);
     pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
     pthread_cond_t *cond = &(sanitizer_thread.cond);
@@ -1451,48 +1341,39 @@ void sanitizer_process_init()
   }
 }
 // @findhao: comment for debug
-__attribute__((constructor))
-int sanitizer_callbacks_subscribe()
-{
-  if (loaded)
-  {
+__attribute__((constructor)) int sanitizer_callbacks_subscribe() {
+  if (loaded) {
     return 1;
-  }
-  else
-  {
+  } else {
     loaded = true;
   }
   pid_t pid = getpid();
   PRINT("PID: %d\n", pid);
   const char *GPUPUNK_DEBUG_raw = getenv("GPUPUNK_DEBUG");
   int GPUPUNK_DEBUG = 0;
-  if (GPUPUNK_DEBUG_raw)
-  {
+  if (GPUPUNK_DEBUG_raw) {
     char *tmp;
     GPUPUNK_DEBUG = strtol(GPUPUNK_DEBUG_raw, &tmp, 10);
   }
-  if (GPUPUNK_DEBUG)
-  {
+  if (GPUPUNK_DEBUG) {
     while (GPUPUNK_DEBUG)
       ;
   }
   // Get mode control from the env variable.
   const char *GPUPUNK_ANALYSIS_MODE_raw = getenv("GPUPUNK_ANALYSIS_MODE");
   int GPUPUNK_ANALYSIS_MODE = 0;
-  if (GPUPUNK_ANALYSIS_MODE_raw)
-  {
+  if (GPUPUNK_ANALYSIS_MODE_raw) {
     char *tmp;
     GPUPUNK_ANALYSIS_MODE = strtol(GPUPUNK_ANALYSIS_MODE_raw, &tmp, 10);
   }
-  switch (GPUPUNK_ANALYSIS_MODE)
-  {
-  case REDSHOW_ANALYSIS_VALUE_PATTERN:
-    sanitizer_value_pattern_analysis_enable();
-    break;
-  case REDSHOW_ANALYSIS_MEMORY_PAGE:
-  default:
-    sanitizer_memory_page_analysis_enable();
-    break;
+  switch (GPUPUNK_ANALYSIS_MODE) {
+    case REDSHOW_ANALYSIS_VALUE_PATTERN:
+      sanitizer_value_pattern_analysis_enable();
+      break;
+    case REDSHOW_ANALYSIS_MEMORY_PAGE:
+    default:
+      sanitizer_memory_page_analysis_enable();
+      break;
   }
   PRINT("GPUTRIGGER -> Working on %d mode.\n", GPUPUNK_ANALYSIS_MODE);
 
@@ -1533,8 +1414,7 @@ int sanitizer_callbacks_subscribe()
 
   return 0;
 }
-__attribute__((destructor)) void notify_exit()
-{
+__attribute__((destructor)) void notify_exit() {
   PRINT("gputrigger-> exit\n");
 }
 
