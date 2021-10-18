@@ -1252,8 +1252,8 @@ static void sanitizer_subscribe_callback(void *userdata,
     switch (cbid) {
       case SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED: {
         // @findhao: comment for api call in drcctprof
-        sanitizer_device_flush();
-        sanitizer_device_shutdown();
+        // sanitizer_device_flush();
+        // sanitizer_device_shutdown();
         break;
       }
       default:
@@ -1414,8 +1414,18 @@ __attribute__((constructor)) int sanitizer_callbacks_subscribe() {
 
   return 0;
 }
+
+void monitor_fini_process(int how, void *data) {
+  sanitizer_device_flush();
+  sanitizer_device_shutdown();
+}
+
+void monitor_fini_thread(void *data) {
+  sanitizer_device_flush();
+}
 __attribute__((destructor)) void notify_exit() {
   PRINT("gputrigger-> exit\n");
+  // sanitizer_device_shutdown();
 }
 
 // int __global_initializer__ = sanitizer_callbacks_subscribe();
