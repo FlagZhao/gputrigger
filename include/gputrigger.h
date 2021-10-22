@@ -141,11 +141,10 @@ EXTERNC void sanitizer_stop_flag_unset();
 EXTERNC void sanitizer_value_pattern_analysis_enable();
 EXTERNC void sanitizer_callbacks_unsubscribe();
 EXTERNC void sanitizer_device_flush();
+EXTERNC void sanitizer_device_flush_now();
 EXTERNC void sanitizer_device_shutdown();
 EXTERNC void sanitizer_buffer_config(int gpu_patch_record_num,
                                      int buffer_pool_size);
-// @findhao: empty function for gpupunk to capture
-EXTERNC void gpupunk_memory_register_trigger(uint64_t start, uint64_t end);
 
 #define SANITIZER_API_DEBUG 1
 #if SANITIZER_API_DEBUG

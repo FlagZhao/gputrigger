@@ -109,8 +109,6 @@ static __thread gpu_patch_buffer_t
 static __thread gpu_patch_aux_address_dict_t
     *sanitizer_gpu_patch_aux_addr_dict_device = NULL;
 
-static bool loaded = false;
-
 // only subscribed by the main thread
 static Sanitizer_SubscriberHandle sanitizer_subscriber_handle;
 
@@ -805,11 +803,6 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
     PRINT("Sanitizer-> analysis gpu in process\n");
   }
 }
-//******************************************************************************
-// gpupunk function triggers
-//******************************************************************************
-
-void gpupunk_memory_register_trigger(uint64_t start, uint64_t end) {}
 
 //******************************************************************************
 // asynchronous process thread
@@ -1043,6 +1036,7 @@ void sanitizer_callbacks_unsubscribe() {
       sanitizerEnableDomain,
       (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_SYNCHRONIZE));
 }
+volatile int GPUPUNK_DEBUG = 0;
 
 static void sanitizer_subscribe_callback(void *userdata,
                                          Sanitizer_CallbackDomain domain,
@@ -1052,6 +1046,14 @@ static void sanitizer_subscribe_callback(void *userdata,
     sanitizer_thread_id_local = atomic_fetch_add(&sanitizer_thread_id, 1);
     sanitizer_stop_flag = true;
   }
+  // @todo delete
+  // while (1) {
+  //   PRINT_ERR("gputrigger is working \n");
+  //   sleep(2);
+  // }
+
+  // pid_t pid = getpid();
+  // PRINT("sanitizer_subscribe_callback PID: %d\n", pid);
 
   if (domain == SANITIZER_CB_DOMAIN_DRIVER_API) {
     Sanitizer_CallbackData *cb = (Sanitizer_CallbackData *)cbdata;
@@ -1186,6 +1188,7 @@ static void sanitizer_subscribe_callback(void *userdata,
       sanitizer_kernel_launch_callback(correlation_id, ld->context,
                                        priority_stream, ld->function, grid_size,
                                        block_size, kernel_sampling);
+      sanitizer_device_flush_now();
     } else if (cbid == SANITIZER_CBID_LAUNCH_AFTER_SYSCALL_SETUP) {
       //            @todo fix this in the future
       //            if (sanitizer_gpu_analysis_blocks != 0 && kernel_sampling) {
@@ -1242,7 +1245,6 @@ static void sanitizer_subscribe_callback(void *userdata,
                             md->srcAddress, dst_host, md->dstAddress, md->size);
   } else if (domain == SANITIZER_CB_DOMAIN_MEMSET) {
     Sanitizer_MemsetData *md = (Sanitizer_MemsetData *)cbdata;
-
     uint64_t correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
     int32_t persistent_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
     redshow_memset_register(persistent_id, correlation_id, md->address,
@@ -1254,6 +1256,7 @@ static void sanitizer_subscribe_callback(void *userdata,
         // @findhao: comment for api call in drcctprof
         // sanitizer_device_flush();
         // sanitizer_device_shutdown();
+        sanitizer_device_flush_now();
         break;
       }
       default:
@@ -1307,6 +1310,10 @@ void sanitizer_device_flush() {
   }
 }
 
+void sanitizer_device_flush_now() {
+  redshow_flush_now(sanitizer_thread_id_local);
+}
+
 void sanitizer_device_shutdown() {
   sanitizer_callbacks_unsubscribe();
 
@@ -1341,24 +1348,11 @@ void sanitizer_process_init() {
   }
 }
 // @findhao: comment for debug
-__attribute__((constructor)) int sanitizer_callbacks_subscribe() {
-  if (loaded) {
-    return 1;
-  } else {
-    loaded = true;
-  }
+// __attribute__((constructor)) int sanitizer_callbacks_subscribe() {
+int sanitizer_callbacks_subscribe() {
   pid_t pid = getpid();
   PRINT("PID: %d\n", pid);
-  const char *GPUPUNK_DEBUG_raw = getenv("GPUPUNK_DEBUG");
-  int GPUPUNK_DEBUG = 0;
-  if (GPUPUNK_DEBUG_raw) {
-    char *tmp;
-    GPUPUNK_DEBUG = strtol(GPUPUNK_DEBUG_raw, &tmp, 10);
-  }
-  if (GPUPUNK_DEBUG) {
-    while (GPUPUNK_DEBUG)
-      ;
-  }
+
   // Get mode control from the env variable.
   const char *GPUPUNK_ANALYSIS_MODE_raw = getenv("GPUPUNK_ANALYSIS_MODE");
   int GPUPUNK_ANALYSIS_MODE = 0;
@@ -1408,13 +1402,36 @@ __attribute__((constructor)) int sanitizer_callbacks_subscribe() {
       sanitizerEnableDomain,
       (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_SYNCHRONIZE));
 
-  //    sanitizer_process_init();
-  //    sanitizer_device_flush();
-  //    sanitizer_device_shutdown();
-
   return 0;
 }
+// void __attribute__((weak))
+// monitor_at_main(void) {
+//   // __attribute__((constructor)) test() {
+//   if (GPUPUNK_DEBUG == 0) {
+//     const char *GPUPUNK_DEBUG_raw = getenv("GPUPUNK_DEBUG");
+//     if (GPUPUNK_DEBUG_raw) {
+//       char *tmp;
+//       // set to 1
+//       GPUPUNK_DEBUG = strtol(GPUPUNK_DEBUG_raw, &tmp, 10);
+//     }
+//     while (GPUPUNK_DEBUG) {
+//     }
+//   }
+// }
 
+void __attribute__((weak))
+monitor_init_library(void) {
+  sanitizer_callbacks_subscribe();
+}
+
+// void *__attribute__((weak))
+// monitor_init_process(int *argc, char **argv, void *data) {
+//   int i;
+
+//   PRINT("(default callback) parent = %d, argc = %d, argv = %p\n",
+//         (int)getppid(), (argc != NULL) ? *argc : 0, argv);
+//   return (data);
+// }
 void monitor_fini_process(int how, void *data) {
   sanitizer_device_flush();
   sanitizer_device_shutdown();
@@ -1425,7 +1442,6 @@ void monitor_fini_thread(void *data) {
 }
 __attribute__((destructor)) void notify_exit() {
   PRINT("gputrigger-> exit\n");
-  // sanitizer_device_shutdown();
 }
 
 // int __global_initializer__ = sanitizer_callbacks_subscribe();
