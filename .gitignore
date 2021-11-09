@@ -272,3 +272,4 @@ build/
 core.*
 core
 .vscode/
+build_debug/

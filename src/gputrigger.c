@@ -240,7 +240,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   }
   used += sprintf(&file_name[used], "%s", ".cubin");
   PRINT("Sanitizer-> cubin_id %d hash %s\n", cubin_id, file_name);
-
+  // @FindHao todo: check the gvprof's code here.
   uint32_t hpctoolkit_module_id = 0;
   PRINT("Sanitizer-> <cubin_id %d, mod_id %d> -> hpctoolkit_module_id %d\n",
         cubin_id, mod_id, hpctoolkit_module_id);
@@ -267,11 +267,12 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   }
   redshow_cubin_cache_register(cubin_id, mod_id, elf_vector->nsymbols, addrs,
                                file_name);
-
-  PRINT("Patch CUBIN: \n");
+  PRINT("Sanitizer-> Context %p Patch CUBIN: \n", context);
+  // @FindHao todo: add different patch mode
   // Instrument user code!
   GPUTRIGGER_SANITIZER_CALL(sanitizerAddPatchesFromFile,
                             (env_FATBIN_PATCH, context));
+
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
                             (SANITIZER_INSTRUCTION_GLOBAL_MEMORY_ACCESS, module,
                              "sanitizer_global_memory_access_callback"));
@@ -287,13 +288,14 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
                             (SANITIZER_INSTRUCTION_BLOCK_EXIT, module,
                              "sanitizer_block_exit_callback"));
-  GPUTRIGGER_SANITIZER_CALL(
-      sanitizerPatchInstructions,
-      (SANITIZER_INSTRUCTION_CALL, module, "sanitizer_instr_call_callback"));
-  GPUTRIGGER_SANITIZER_CALL(
-      sanitizerPatchInstructions,
-      (SANITIZER_INSTRUCTION_RET, module, "sanitizer_instr_ret_callback"));
+  // GPUTRIGGER_SANITIZER_CALL(
+  //     sanitizerPatchInstructions,
+  //     (SANITIZER_INSTRUCTION_CALL, module, "sanitizer_instr_call_callback"));
+  // GPUTRIGGER_SANITIZER_CALL(
+  //     sanitizerPatchInstructions,
+  //     (SANITIZER_INSTRUCTION_RET, module, "sanitizer_instr_ret_callback"));
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchModule, (module));
+  sanitizer_buffer_init(context);
 }
 
 static void sanitizer_unload_callback(const void *module, const void *cubin,
@@ -404,7 +406,6 @@ static void sanitizer_buffer_init(CUcontext context) {
                               (sanitizer_gpu_patch_buffer_device,
                                sanitizer_gpu_patch_buffer_reset,
                                sizeof(gpu_patch_buffer_t), priority_stream));
-
     // Update map
     sanitizer_context_map_buffer_device_update(
         context, sanitizer_gpu_patch_buffer_device);
@@ -1042,15 +1043,13 @@ static void sanitizer_subscribe_callback(void *userdata,
                                          Sanitizer_CallbackDomain domain,
                                          Sanitizer_CallbackId cbid,
                                          const void *cbdata) {
+  if (cuda_api_internal()) {
+    return;
+  }
   if (!sanitizer_stop_flag) {
     sanitizer_thread_id_local = atomic_fetch_add(&sanitizer_thread_id, 1);
     sanitizer_stop_flag = true;
   }
-  // @todo delete
-  // while (1) {
-  //   PRINT_ERR("gputrigger is working \n");
-  //   sleep(2);
-  // }
 
   // pid_t pid = getpid();
   // PRINT("sanitizer_subscribe_callback PID: %d\n", pid);
@@ -1190,7 +1189,7 @@ static void sanitizer_subscribe_callback(void *userdata,
                                        block_size, kernel_sampling);
       sanitizer_device_flush_now();
     } else if (cbid == SANITIZER_CBID_LAUNCH_AFTER_SYSCALL_SETUP) {
-      //            @todo fix this in the future
+      //            @FindHao todo: fix this in the future
       //            if (sanitizer_gpu_analysis_blocks != 0 && kernel_sampling) {
       //                sanitizer_kernel_launch(ld->context);
       //            }
@@ -1443,5 +1442,11 @@ void monitor_fini_thread(void *data) {
 __attribute__((destructor)) void notify_exit() {
   PRINT("gputrigger-> exit\n");
 }
-
+__attribute__((constructor)) void notify_init() {
+  PRINT("gputrigger-> start\n");
+  if (cuda_bind()) {
+    PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
+  }
+  sanitizer_callbacks_subscribe();
+}
 // int __global_initializer__ = sanitizer_callbacks_subscribe();

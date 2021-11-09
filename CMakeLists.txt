@@ -6,7 +6,10 @@ check_language(CUDA)
 
 enable_language(CUDA)
 #@findhao: for debug
-set(CMAKE_BUILD_TYPE RelWithDebInfo)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
+            "Default build type: RelWithDebInfo" FORCE)
+endif()
 
 
 if(${CMAKE_VERSION} VERSION_LESS "3.17.0") 
@@ -61,7 +64,7 @@ include_directories(${SANITIZER_PATH}/include/
                 )
 message(INFO ${SANITIZER_PATH} ${CUDAToolkit_NVCC_EXECUTABLE})
 
-find_library(redshow redshow HINTS ${redshow_path}/lib)
+# find_library(redshow redshow HINTS ${redshow_path}/lib)
 
 add_link_options(-L${SANITIZER_PATH}  -fPIC -shared)
 # add_custom_target(gputrigger_patch.fatbin ALL ${CUDAToolkit_NVCC_EXECUTABLE} -o gputrigger_patch.fatbin ${CMAKE_CUDA_FLAGS} --fatbin --keep-device-functions -Xptxas --compile-as-tools-patch -g  -I${SANITIZER_PATH}/include/ -I${CUDAToolkit_TARGET_DIR}/include/ -c ${CMAKE_CURRENT_LIST_DIR}/gpu-patch.cu )
@@ -76,9 +79,15 @@ add_library(gputrigger SHARED ${gputrigger_SRC} ${DIR_PROF_LEAN} ${gputrigger_he
 
 target_link_libraries(gputrigger PUBLIC
         -lmbedcrypto
-        ${redshow}
+        # ${redshow}
+        -lredshow
+        -L${redshow_path}/lib
         -lelf
         -lsanitizer-public
+        -lcuda
+        -lcudart
+        -L${CUDAToolkit_TARGET_DIR}/lib64
+        -ldl
         )
 
 # install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/gputrigger_patch.fatbin DESTINATION ${CMAKE_INSTALL_PREFIX})
