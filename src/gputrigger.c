@@ -137,7 +137,8 @@ static uint32_t sanitizer_gpu_analysis_blocks = 0;
 static uint32_t sanitizer_gpu_analysis_type = GPU_PATCH_TYPE_ADDRESS_ANALYSIS;
 static bool sanitizer_read_trace_ignore = false;
 static bool sanitizer_data_flow_hash = false;
-
+// default type
+static redshow_analysis_type_t GPUPUNK_ANALYSIS_MODE = REDSHOW_ANALYSIS_MEMORY_PAGE;
 // CPU async
 static bool sanitizer_analysis_async = false;
 typedef struct
@@ -201,15 +202,15 @@ void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size) {
 static void sanitizer_load_callback(CUcontext context, CUmodule module,
                                     const void *cubin, size_t cubin_size) {
   //    check patch file existence and permission
-  const char *env_FATBIN_PATCH = getenv("GPUPUNK_PATCH");
-  PRINT("The GPUPUNK_PATH is %s\n", env_FATBIN_PATCH);
+  const char *env_FATBIN_PATCH = getenv("GPUPATCH_PATH");
+  PRINT("The GPUPATCH_PATH is %s\n", env_FATBIN_PATCH);
   if (env_FATBIN_PATCH) {
     if (access(env_FATBIN_PATCH, R_OK) != 0) {
-      PRINT_ERR("ERROR: Can not access GPUPUNK_PATH\n");
+      PRINT_ERR("ERROR: Can not access GPUPATCH_PATH\n");
       exit(-1);
     }
   } else {
-    PRINT_ERR("ERROR: no GPUPUNK_PATH env specified.");
+    PRINT_ERR("ERROR: no GPUPATCH_PATH env specified.");
     exit(-1);
   }
 
@@ -1310,7 +1311,9 @@ void sanitizer_device_flush() {
 }
 
 void sanitizer_device_flush_now() {
-  redshow_flush_now(sanitizer_thread_id_local);
+  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_PAGE) {
+    redshow_flush_now(sanitizer_thread_id_local);
+  }
 }
 
 void sanitizer_device_shutdown() {
@@ -1354,7 +1357,6 @@ int sanitizer_callbacks_subscribe() {
 
   // Get mode control from the env variable.
   const char *GPUPUNK_ANALYSIS_MODE_raw = getenv("GPUPUNK_ANALYSIS_MODE");
-  int GPUPUNK_ANALYSIS_MODE = 0;
   if (GPUPUNK_ANALYSIS_MODE_raw) {
     char *tmp;
     GPUPUNK_ANALYSIS_MODE = strtol(GPUPUNK_ANALYSIS_MODE_raw, &tmp, 10);
@@ -1420,6 +1422,10 @@ int sanitizer_callbacks_subscribe() {
 
 void __attribute__((weak))
 monitor_init_library(void) {
+  PRINT("gputrigger-> start\n");
+  if (cuda_bind()) {
+    PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
+  }
   sanitizer_callbacks_subscribe();
 }
 
@@ -1442,11 +1448,12 @@ void monitor_fini_thread(void *data) {
 __attribute__((destructor)) void notify_exit() {
   PRINT("gputrigger-> exit\n");
 }
-__attribute__((constructor)) void notify_init() {
-  PRINT("gputrigger-> start\n");
-  if (cuda_bind()) {
-    PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
-  }
-  sanitizer_callbacks_subscribe();
-}
+// When only run gputrigger, use this constructor. But when run with libmonitor, comment this function
+// __attribute__((constructor)) void notify_init() {
+//   PRINT("gputrigger-> start\n");
+//   if (cuda_bind()) {
+//     PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
+//   }
+//   sanitizer_callbacks_subscribe();
+// }
 // int __global_initializer__ = sanitizer_callbacks_subscribe();
