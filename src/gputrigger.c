@@ -202,11 +202,22 @@ void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size) {
 static void sanitizer_load_callback(CUcontext context, CUmodule module,
                                     const void *cubin, size_t cubin_size) {
   //    check patch file existence and permission
-  const char *env_FATBIN_PATCH = getenv("GPUPATCH_PATH");
-  PRINT("The GPUPATCH_PATH is %s\n", env_FATBIN_PATCH);
-  if (env_FATBIN_PATCH) {
+  const char *env_PATCH_PATH = getenv("GPUPATCH_PATH");
+      PRINT("The GPUPATCH_PATH is %s\n", env_PATCH_PATH);
+  // Create file name
+  char env_FATBIN_PATCH[PATH_MAX];
+  size_t used = 0;
+  //    @todo fix path
+  used += sprintf(&env_FATBIN_PATCH, "%s", env_PATCH_PATH);
+  if (env_PATCH_PATH) {
     if (access(env_FATBIN_PATCH, R_OK) != 0) {
       PRINT_ERR("ERROR: Can not access GPUPATCH_PATH\n");
+      exit(-1);
+    }
+    //@FindHao: todo, add more modes
+    used += sprintf(&env_FATBIN_PATCH[used], "%s", "/lib/gpu-patch.fatbin");
+    if (access(env_FATBIN_PATCH, R_OK) != 0) {
+      PRINT_ERR("ERROR: Can not access FATBIN_PATCH %s\n", env_FATBIN_PATCH);
       exit(-1);
     }
   } else {
@@ -231,7 +242,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   // Create file name
   char file_name[PATH_MAX];
   size_t i;
-  size_t used = 0;
+  used = 0;
   //    @todo fix path
   used += sprintf(&file_name[used], "%s", "./");
   used += sprintf(&file_name[used], "%s", "/cubins/");
@@ -943,10 +954,10 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
     size_t num_records = sanitizer_gpu_patch_buffer_host->head_index;
 
     // Reserve for debugging correctness
-    PRINT("head_index %u, tail_index %u, num_left_threads %u expected %zu\n",
-          sanitizer_gpu_patch_buffer_host->head_index,
-          sanitizer_gpu_patch_buffer_host->tail_index,
-          sanitizer_gpu_patch_buffer_host->num_threads, num_left_threads);
+    // PRINT("head_index %u, tail_index %u, num_left_threads %u expected %zu\n",
+    //       sanitizer_gpu_patch_buffer_host->head_index,
+    //       sanitizer_gpu_patch_buffer_host->tail_index,
+    //       sanitizer_gpu_patch_buffer_host->num_threads, num_left_threads);
 
     if (sanitizer_gpu_analysis_blocks != 0) {
       sanitizer_kernel_analyze(persistent_id, correlation_id, cubin_id, mod_id,
@@ -1448,12 +1459,18 @@ void monitor_fini_thread(void *data) {
 __attribute__((destructor)) void notify_exit() {
   PRINT("gputrigger-> exit\n");
 }
-// When only run gputrigger, use this constructor. But when run with libmonitor, comment this function
-// __attribute__((constructor)) void notify_init() {
-//   PRINT("gputrigger-> start\n");
-//   if (cuda_bind()) {
-//     PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
-//   }
-//   sanitizer_callbacks_subscribe();
-// }
-// int __global_initializer__ = sanitizer_callbacks_subscribe();
+
+__attribute__((constructor)) void notify_init() {
+  const char *with_libmonitor_raw = getenv("W_LIBMONITOR");
+  if (with_libmonitor_raw) {
+    char *tmp;
+    long long with_libmonitor = strtol(with_libmonitor_raw, &tmp, 10);
+    if (with_libmonitor == 0){
+      PRINT("gputrigger-> start\n");
+      if (cuda_bind()) {
+        PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
+      }
+      sanitizer_callbacks_subscribe();
+    }
+  }
+}
