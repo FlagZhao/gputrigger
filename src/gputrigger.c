@@ -61,7 +61,22 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <pthread.h>
-#include <redshow.h>
+
+
+#ifdef STANDALONE
+  #include <redshow.h>
+#define REDSHOW_FN_NAME(f) f
+#else
+  #include <redshow_dummy.h>
+  #define REDSHOW_FN_NAME(f) f##_dummy
+#endif
+
+#define REDSHOW_FN(f, args) \
+  {                         \
+    REDSHOW_FN_NAME(f)      \
+    args;                   \
+  }
+
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -170,6 +185,8 @@ static sanitizer_thread_t sanitizer_thread;
     args;                                            \
   }
 
+
+
 static const int DEFAULT_GPU_PATCH_RECORD_NUM = 16 * 1024;
 static const int DEFAULT_BUFFER_POOL_SIZE = 500;
 static const int DEFAULT_DEVICE_BUFFER_SIZE = 1024 * 1024 * 8;
@@ -277,8 +294,8 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
       addrs[i] = pc;
     }
   }
-  redshow_cubin_cache_register(cubin_id, mod_id, elf_vector->nsymbols, addrs,
-                               file_name);
+  REDSHOW_FN(redshow_cubin_cache_register, (cubin_id, mod_id, elf_vector->nsymbols, addrs,
+                                         file_name));
   PRINT("Sanitizer-> Context %p Patch CUBIN: \n", context);
   // @FindHao todo: add different patch mode
   // Instrument user code!
@@ -618,9 +635,9 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context,
 
     // Get memory ranges from redshow
     uint64_t limit = GPU_PATCH_ADDRESS_DICT_SIZE;
-    redshow_memory_ranges_get(correlation_id, limit,
+    REDSHOW_FN(redshow_memory_ranges_get, (correlation_id, limit,
                               sanitizer_gpu_patch_aux_addr_dict_host->start_end,
-                              &sanitizer_gpu_patch_aux_addr_dict_host->size);
+                              &sanitizer_gpu_patch_aux_addr_dict_host->size));
     // Copy
     GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyHostToDeviceAsync,
                               (sanitizer_gpu_patch_buffer_reset->aux,
@@ -853,9 +870,9 @@ static void *sanitizer_process_thread(void *arg) {
   pthread_cond_t *cond = &(sanitizer_thread.cond);
   pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
   while (!atomic_load(&sanitizer_process_stop_flag)) {
-    redshow_analysis_begin();
+    REDSHOW_FN(redshow_analysis_begin, ());
     sanitizer_buffer_channel_set_consume();
-    redshow_analysis_end();
+    REDSHOW_FN(redshow_analysis_end, ());
     sanitizer_process_await();
   }
   // Last records
@@ -1141,8 +1158,8 @@ static void sanitizer_subscribe_callback(void *userdata,
         Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
         int32_t memory_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
         uint64_t host_op_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
-        redshow_memory_register(memory_id, host_op_id, md->address,
-                                md->address + md->size);
+        REDSHOW_FN(redshow_memory_register, (memory_id, host_op_id, md->address,
+                                md->address + md->size));
         PRINT("Sanitizer-> Allocate memory address %p, size %zu, op %u, id %d\n",
               (void *)md->address, md->size, host_op_id, memory_id);
         break;
@@ -1150,8 +1167,8 @@ static void sanitizer_subscribe_callback(void *userdata,
       case SANITIZER_CBID_RESOURCE_DEVICE_MEMORY_FREE: {
         Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
         uint64_t host_op_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
-        redshow_memory_unregister(host_op_id, md->address,
-                                  md->address + md->size);
+        REDSHOW_FN(redshow_memory_unregister, (host_op_id, md->address,
+                                  md->address + md->size));
         PRINT("Sanitizer-> Free memory address %p, size %zu, op %lu\n",
               (void *)md->address, md->size, host_op_id);
         break;
@@ -1193,8 +1210,8 @@ static void sanitizer_subscribe_callback(void *userdata,
       // thread-safe
       // Create a high priority stream for the context at the first time
       // TODO(Keren): change stream->hstream
-      redshow_kernel_begin(sanitizer_thread_id_local, persistent_id,
-                           correlation_id);
+      REDSHOW_FN(redshow_kernel_begin, (sanitizer_thread_id_local, persistent_id,
+                           correlation_id));
       priority_stream = sanitizer_priority_stream_get(ld->context);
       sanitizer_kernel_launch_callback(correlation_id, ld->context,
                                        priority_stream, ld->function, grid_size,
@@ -1220,8 +1237,8 @@ static void sanitizer_subscribe_callback(void *userdata,
       // sampled. TO prevent data is incorrectly copied in the next round
       GPUTRIGGER_SANITIZER_CALL(sanitizerStreamSynchronize, (ld->hStream));
 
-      redshow_kernel_end(sanitizer_thread_id_local, persistent_id,
-                         correlation_id);
+      REDSHOW_FN(redshow_kernel_end, (sanitizer_thread_id_local, persistent_id,
+                         correlation_id));
 
       //            kernel_sampling = true;
 
@@ -1252,14 +1269,14 @@ static void sanitizer_subscribe_callback(void *userdata,
 
     // Avoid memcpy to symbol without allocation
     // Let redshow update shadow memory
-    redshow_memcpy_register(persistent_id, correlation_id, src_host,
-                            md->srcAddress, dst_host, md->dstAddress, md->size);
+    REDSHOW_FN(redshow_memcpy_register, (persistent_id, correlation_id, src_host,
+                            md->srcAddress, dst_host, md->dstAddress, md->size));
   } else if (domain == SANITIZER_CB_DOMAIN_MEMSET) {
     Sanitizer_MemsetData *md = (Sanitizer_MemsetData *)cbdata;
     uint64_t correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
     int32_t persistent_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
-    redshow_memset_register(persistent_id, correlation_id, md->address,
-                            md->value, md->width);
+    REDSHOW_FN(redshow_memset_register, (persistent_id, correlation_id, md->address,
+                            md->value, md->width));
   } else if (domain == SANITIZER_CB_DOMAIN_SYNCHRONIZE) {
     // TODO(Keren): sync data
     switch (cbid) {
@@ -1284,18 +1301,18 @@ static void output_dir_config(char *dir_name, char *suffix) {
 }
 
 void sanitizer_value_pattern_analysis_enable() {
-  redshow_analysis_enable(REDSHOW_ANALYSIS_VALUE_PATTERN);
+  REDSHOW_FN(redshow_analysis_enable, (REDSHOW_ANALYSIS_VALUE_PATTERN));
   char dir_name[PATH_MAX];
   output_dir_config(dir_name, "/value_pattern/");
-  redshow_output_dir_config(REDSHOW_ANALYSIS_VALUE_PATTERN, dir_name);
+  REDSHOW_FN(redshow_output_dir_config, (REDSHOW_ANALYSIS_VALUE_PATTERN, dir_name));
   sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_t);
 }
 
 void sanitizer_memory_page_analysis_enable() {
-  redshow_analysis_enable(REDSHOW_ANALYSIS_MEMORY_PAGE);
+  REDSHOW_FN(redshow_analysis_enable, (REDSHOW_ANALYSIS_MEMORY_PAGE));
   char dir_name[PATH_MAX];
   output_dir_config(dir_name, "/memory_page/");
-  redshow_output_dir_config(REDSHOW_ANALYSIS_MEMORY_PAGE, dir_name);
+  REDSHOW_FN(redshow_output_dir_config, (REDSHOW_ANALYSIS_MEMORY_PAGE, dir_name));
   sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_t);
 }
 
@@ -1317,13 +1334,13 @@ void sanitizer_device_flush() {
       }
     }
     // Attribute performance metrics to CCTs
-    redshow_flush_thread(sanitizer_thread_id_local);
+    REDSHOW_FN(redshow_flush_thread, (sanitizer_thread_id_local));
   }
 }
 
 void sanitizer_device_flush_now() {
   if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_PAGE) {
-    redshow_flush_now(sanitizer_thread_id_local);
+    REDSHOW_FN(redshow_flush_now, (sanitizer_thread_id_local));
   }
 }
 
@@ -1341,7 +1358,7 @@ void sanitizer_device_shutdown() {
   }
 
   // Attribute performance metrics to CCTs
-  redshow_flush();
+  REDSHOW_FN(redshow_flush, ());
 
   while (atomic_load(&sanitizer_process_thread_counter))
     ;
