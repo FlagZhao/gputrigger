@@ -55,11 +55,10 @@
 //******************************************************************************
 
 #include "sanitizer-buffer.h"
-#include "gputrigger.h"
+
 
 #include <stddef.h>
 #include <gpu-patch.h>
-#include <redshow.h>
 #include <malloc.h>
 #include <stdbool.h>
 
@@ -100,8 +99,8 @@ sanitizer_buffer_process
   int32_t kernel_id = b->kernel_id;
   uint64_t host_op_id = b->host_op_id;
   gpu_patch_buffer_t *gpu_patch_buffer = b->gpu_patch_buffer;
-  
-  redshow_analyze(thread_id, cubin_id, mod_id, kernel_id, host_op_id, gpu_patch_buffer);
+
+  REDSHOW_FN(redshow_analyze, (thread_id, cubin_id, mod_id, kernel_id, host_op_id, gpu_patch_buffer));
 }
 
 

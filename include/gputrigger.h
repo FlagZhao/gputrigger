@@ -11,6 +11,22 @@
 #include <stdio.h>
 #include <vector_types.h>
 
+#ifdef STANDALONE
+#include <redshow.h>
+#define REDSHOW_FN_NAME(f) f
+#else
+#include <redshow_dummy.h>
+#define REDSHOW_FN_NAME(f) f##_dummy
+#endif
+
+#define REDSHOW_FN(f, args) \
+  {                         \
+    REDSHOW_FN_NAME(f)      \
+    args;                   \
+  }
+
+
+
 #ifdef __cplusplus
 #define EXTERNC extern "C"
 #else
