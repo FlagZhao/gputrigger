@@ -46,9 +46,9 @@ set(SANITIZER_PATH ${CUDAToolkit_TARGET_DIR}/compute-sanitizer)
 #@findhao: for debug
 # set(redshow_path /home/yhao24/opt/redshow_debug)
 
-if(NOT redshow_path)
-    message(FATAL_ERROR "You need to specify redshow library path. ")
-endif()
+# if(NOT redshow_path)
+#     message(FATAL_ERROR "You need to specify redshow library path. ")
+# endif()
 
 if(NOT gpu_patch_path)
     message(INFO "Use default gpu_patch_path:" ${CMAKE_CURRENT_LIST_DIR}/gpu-patch/ )
@@ -57,7 +57,7 @@ endif()
 
 include_directories(${SANITIZER_PATH}/include/ 
                 ${CUDAToolkit_TARGET_DIR}/include/ 
-                ${redshow_path}/include/ ${redshow_path}/include/common 
+                # ${redshow_path}/include/ ${redshow_path}/include/common 
                 ${CMAKE_CURRENT_LIST_DIR}/include/
                 ${CMAKE_CURRENT_LIST_DIR}/src/
                 ${gpu_patch_path}/include/
@@ -80,8 +80,8 @@ add_library(gputrigger SHARED ${gputrigger_SRC} ${DIR_PROF_LEAN} ${gputrigger_he
 target_link_libraries(gputrigger PUBLIC
         -lmbedcrypto
         # ${redshow}
-        -lredshow
-        -L${redshow_path}/lib
+        # -lredshow
+        # -L${redshow_path}/lib
         -lelf
         -lsanitizer-public
         -lcuda
