@@ -62,7 +62,9 @@
 #include <cuda_runtime.h>
 #include <pthread.h>
 
-
+#ifndef HPCRUN_STATIC_LINK
+#include <dlfcn.h>
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -212,7 +214,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   char env_FATBIN_PATCH[PATH_MAX];
   size_t used = 0;
   //    @todo fix path
-  used += sprintf(&env_FATBIN_PATCH, "%s", env_PATCH_PATH);
+  used += sprintf(&env_FATBIN_PATCH[0], "%s", env_PATCH_PATH);
   if (env_PATCH_PATH) {
     if (access(env_FATBIN_PATCH, R_OK) != 0) {
       PRINT_ERR("ERROR: Can not access GPUPATCH_PATH\n");
@@ -1147,7 +1149,7 @@ static void sanitizer_subscribe_callback(void *userdata,
         uint64_t host_op_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
         REDSHOW_FN(redshow_memory_register, (memory_id, host_op_id, md->address,
                                 md->address + md->size));
-        PRINT("Sanitizer-> Allocate memory address %p, size %zu, op %u, id %d\n",
+        PRINT("Sanitizer-> Allocate memory address %p, size %zu, op %lu, id %d\n",
               (void *)md->address, md->size, host_op_id, memory_id);
         break;
       }

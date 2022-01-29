@@ -40,6 +40,9 @@ endif()
 set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+set(CMAKE_CXX_FLAGS " -Wall -Wextra")
+
 set(SANITIZER_PATH ${CUDAToolkit_TARGET_DIR}/compute-sanitizer)
 # @findhao: drcctprof can not handle pthread
 # set(THREADS_PREFER_PTHREAD_FLAG ON)

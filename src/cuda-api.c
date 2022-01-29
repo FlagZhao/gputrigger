@@ -541,7 +541,7 @@ cuda_write_cubin(
     }
   } else {
     // Failure to open is a fatal error.
-    hpcrun_abort("hpctoolkit: unable to open file: '%s'", file_name);
+    fprintf(stderr, "hpctoolkit: unable to open file: '%s'", file_name);
     return false;
   }
 }
