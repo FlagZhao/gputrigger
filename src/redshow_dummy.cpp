@@ -4,7 +4,6 @@
 
 #include <redshow_dummy.h>
 
-#include <iostream>
 
 [[gnu::noinline]]
 redshow_result_t redshow_output_dir_config_dummy(redshow_analysis_type_t analysis,

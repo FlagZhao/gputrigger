@@ -73,6 +73,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "control-knob.h"
 #include "cubin-id-map.h"
 #include "cubin-symbols.h"
 
@@ -174,8 +175,6 @@ static sanitizer_thread_t sanitizer_thread;
     args;                                            \
   }
 
-
-
 static const int DEFAULT_GPU_PATCH_RECORD_NUM = 16 * 1024;
 static const int DEFAULT_BUFFER_POOL_SIZE = 500;
 static const int DEFAULT_DEVICE_BUFFER_SIZE = 1024 * 1024 * 8;
@@ -209,13 +208,13 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
                                     const void *cubin, size_t cubin_size) {
   //    check patch file existence and permission
   const char *env_PATCH_PATH = getenv("GPUPATCH_PATH");
-      PRINT("The GPUPATCH_PATH is %s\n", env_PATCH_PATH);
+  PRINT("The GPUPATCH_PATH is %s\n", env_PATCH_PATH);
   // Create file name
   char env_FATBIN_PATCH[PATH_MAX];
   size_t used = 0;
   //    @todo fix path
-  used += sprintf(&env_FATBIN_PATCH[0], "%s", env_PATCH_PATH);
   if (env_PATCH_PATH) {
+    used += sprintf(&env_FATBIN_PATCH[0], "%s", env_PATCH_PATH);
     if (access(env_FATBIN_PATCH, R_OK) != 0) {
       PRINT_ERR("ERROR: Can not access GPUPATCH_PATH\n");
       exit(-1);
@@ -284,7 +283,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
     }
   }
   REDSHOW_FN(redshow_cubin_cache_register, (cubin_id, mod_id, elf_vector->nsymbols, addrs,
-                                         file_name));
+                                            file_name));
   PRINT("Sanitizer-> Context %p Patch CUBIN: \n", context);
   // @FindHao todo: add different patch mode
   // Instrument user code!
@@ -625,8 +624,8 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context,
     // Get memory ranges from redshow
     uint64_t limit = GPU_PATCH_ADDRESS_DICT_SIZE;
     REDSHOW_FN(redshow_memory_ranges_get, (correlation_id, limit,
-                              sanitizer_gpu_patch_aux_addr_dict_host->start_end,
-                              &sanitizer_gpu_patch_aux_addr_dict_host->size));
+                                           sanitizer_gpu_patch_aux_addr_dict_host->start_end,
+                                           &sanitizer_gpu_patch_aux_addr_dict_host->size));
     // Copy
     GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyHostToDeviceAsync,
                               (sanitizer_gpu_patch_buffer_reset->aux,
@@ -1148,7 +1147,7 @@ static void sanitizer_subscribe_callback(void *userdata,
         int32_t memory_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
         uint64_t host_op_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
         REDSHOW_FN(redshow_memory_register, (memory_id, host_op_id, md->address,
-                                md->address + md->size));
+                                             md->address + md->size));
         PRINT("Sanitizer-> Allocate memory address %p, size %zu, op %lu, id %d\n",
               (void *)md->address, md->size, host_op_id, memory_id);
         break;
@@ -1157,7 +1156,7 @@ static void sanitizer_subscribe_callback(void *userdata,
         Sanitizer_ResourceMemoryData *md = (Sanitizer_ResourceMemoryData *)cbdata;
         uint64_t host_op_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
         REDSHOW_FN(redshow_memory_unregister, (host_op_id, md->address,
-                                  md->address + md->size));
+                                               md->address + md->size));
         PRINT("Sanitizer-> Free memory address %p, size %zu, op %lu\n",
               (void *)md->address, md->size, host_op_id);
         break;
@@ -1200,7 +1199,7 @@ static void sanitizer_subscribe_callback(void *userdata,
       // Create a high priority stream for the context at the first time
       // TODO(Keren): change stream->hstream
       REDSHOW_FN(redshow_kernel_begin, (sanitizer_thread_id_local, persistent_id,
-                           correlation_id));
+                                        correlation_id));
       priority_stream = sanitizer_priority_stream_get(ld->context);
       sanitizer_kernel_launch_callback(correlation_id, ld->context,
                                        priority_stream, ld->function, grid_size,
@@ -1227,7 +1226,7 @@ static void sanitizer_subscribe_callback(void *userdata,
       GPUTRIGGER_SANITIZER_CALL(sanitizerStreamSynchronize, (ld->hStream));
 
       REDSHOW_FN(redshow_kernel_end, (sanitizer_thread_id_local, persistent_id,
-                         correlation_id));
+                                      correlation_id));
 
       //            kernel_sampling = true;
 
@@ -1259,13 +1258,13 @@ static void sanitizer_subscribe_callback(void *userdata,
     // Avoid memcpy to symbol without allocation
     // Let redshow update shadow memory
     REDSHOW_FN(redshow_memcpy_register, (persistent_id, correlation_id, src_host,
-                            md->srcAddress, dst_host, md->dstAddress, md->size));
+                                         md->srcAddress, dst_host, md->dstAddress, md->size));
   } else if (domain == SANITIZER_CB_DOMAIN_MEMSET) {
     Sanitizer_MemsetData *md = (Sanitizer_MemsetData *)cbdata;
     uint64_t correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
     int32_t persistent_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
     REDSHOW_FN(redshow_memset_register, (persistent_id, correlation_id, md->address,
-                            md->value, md->width));
+                                         md->value, md->width));
   } else if (domain == SANITIZER_CB_DOMAIN_SYNCHRONIZE) {
     // TODO(Keren): sync data
     switch (cbid) {
@@ -1366,6 +1365,7 @@ void sanitizer_process_init() {
     pthread_create(thread, NULL, sanitizer_process_thread, NULL);
   }
 }
+
 // @findhao: comment for debug
 // __attribute__((constructor)) int sanitizer_callbacks_subscribe() {
 int sanitizer_callbacks_subscribe() {
@@ -1388,9 +1388,15 @@ int sanitizer_callbacks_subscribe() {
       break;
   }
   PRINT("GPUTRIGGER -> Working on %d mode.\n", GPUPUNK_ANALYSIS_MODE);
+  control_knob_init();
+  int gpu_patch_record_num = control_knob_value_get_int(GPUPUNK_SANITIZER_GPU_PATCH_RECORD_NUM);
+  if (gpu_patch_record_num == 0)
+    gpu_patch_record_num = DEFAULT_GPU_PATCH_RECORD_NUM;
+  int buffer_pool_size = control_knob_value_get_int(GPUPUNK_SANITIZER_BUFFER_POOL_SIZE);
+  if (buffer_pool_size == 0)
+    buffer_pool_size = DEFAULT_BUFFER_POOL_SIZE;
 
-  sanitizer_buffer_config(DEFAULT_GPU_PATCH_RECORD_NUM,
-                          DEFAULT_BUFFER_POOL_SIZE);
+  sanitizer_buffer_config(gpu_patch_record_num, buffer_pool_size);
 
   GPUTRIGGER_SANITIZER_CALL(
       sanitizerSubscribe,
@@ -1436,7 +1442,7 @@ int sanitizer_callbacks_subscribe() {
 //     }
 //   }
 // }
-
+// @FindHao: @todo is it will conflict with the constructor?
 void __attribute__((weak))
 monitor_init_library(void) {
   PRINT("gputrigger-> start\n");
@@ -1471,7 +1477,7 @@ __attribute__((constructor)) void notify_init() {
   if (with_libmonitor_raw) {
     char *tmp;
     long long with_libmonitor = strtol(with_libmonitor_raw, &tmp, 10);
-    if (with_libmonitor == 0){
+    if (with_libmonitor == 0) {
       PRINT("gputrigger-> start\n");
       if (cuda_bind()) {
         PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
