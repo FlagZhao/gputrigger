@@ -175,7 +175,7 @@ static sanitizer_thread_t sanitizer_thread;
     args;                                            \
   }
 
-static const int DEFAULT_GPU_PATCH_RECORD_NUM = 16 * 1024;
+static const int DEFAULT_GPU_PATCH_RECORD_NUM = 1280 * 1024;
 static const int DEFAULT_BUFFER_POOL_SIZE = 500;
 static const int DEFAULT_DEVICE_BUFFER_SIZE = 1024 * 1024 * 8;
 
@@ -1428,38 +1428,30 @@ int sanitizer_callbacks_subscribe() {
 
   return 0;
 }
-// void __attribute__((weak))
-// monitor_at_main(void) {
-//   // __attribute__((constructor)) test() {
-//   if (GPUPUNK_DEBUG == 0) {
-//     const char *GPUPUNK_DEBUG_raw = getenv("GPUPUNK_DEBUG");
-//     if (GPUPUNK_DEBUG_raw) {
-//       char *tmp;
-//       // set to 1
-//       GPUPUNK_DEBUG = strtol(GPUPUNK_DEBUG_raw, &tmp, 10);
-//     }
-//     while (GPUPUNK_DEBUG) {
-//     }
-//   }
-// }
+
 // @FindHao: @todo is it will conflict with the constructor?
-void __attribute__((weak))
-monitor_init_library(void) {
+// void __attribute__((weak))
+// monitor_init_library(void) {
+//   PRINT("gputrigger-> start\n");
+//   if (cuda_bind()) {
+//     PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
+//   }
+//   sanitizer_callbacks_subscribe();
+// }
+
+void *__attribute__((weak))
+monitor_init_process(int *argc, char **argv, void *data) {
+  int i;
+  PRINT("(default callback) parent = %d, argc = %d, argv = %p\n",
+        (int)getppid(), (argc != NULL) ? *argc : 0, argv);
   PRINT("gputrigger-> start\n");
   if (cuda_bind()) {
     PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
   }
   sanitizer_callbacks_subscribe();
+  return (data);
 }
 
-// void *__attribute__((weak))
-// monitor_init_process(int *argc, char **argv, void *data) {
-//   int i;
-
-//   PRINT("(default callback) parent = %d, argc = %d, argv = %p\n",
-//         (int)getppid(), (argc != NULL) ? *argc : 0, argv);
-//   return (data);
-// }
 void monitor_fini_process(int how, void *data) {
   sanitizer_device_flush();
   sanitizer_device_shutdown();
@@ -1472,17 +1464,18 @@ __attribute__((destructor)) void notify_exit() {
   PRINT("gputrigger-> exit\n");
 }
 
-__attribute__((constructor)) void notify_init() {
-  const char *with_libmonitor_raw = getenv("W_LIBMONITOR");
-  if (with_libmonitor_raw) {
-    char *tmp;
-    long long with_libmonitor = strtol(with_libmonitor_raw, &tmp, 10);
-    if (with_libmonitor == 0) {
-      PRINT("gputrigger-> start\n");
-      if (cuda_bind()) {
-        PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
-      }
-      sanitizer_callbacks_subscribe();
-    }
-  }
-}
+// __attribute__((constructor)) void notify_init() {
+//   long long with_libmonitor = 0;
+//   const char *with_libmonitor_raw = getenv("W_LIBMONITOR");
+//   if (with_libmonitor_raw) {
+//     char *tmp;
+//     with_libmonitor = strtol(with_libmonitor_raw, &tmp, 10);
+//   }
+//   if (with_libmonitor == 0) {
+//     PRINT("gputrigger-> start in constructor\n");
+//     if (cuda_bind()) {
+//       PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
+//     }
+//     sanitizer_callbacks_subscribe();
+//   }
+// }
