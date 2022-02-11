@@ -701,14 +701,25 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
                                record_size * num_records, priority_stream));
     PRINT("Sanitizer-> copy num_records %zu\n", num_records);
   }
+  // for debug
+  // for (int i = 0; i < num_records; i++)
+  // {
+  //   gpu_patch_record_t *record =
+  //       (gpu_patch_record_t *)((void *)gpu_patch_buffer->records +
+  //                              record_size * i);
+  //   PRINT("record flat_thread_id %d\n", record->flat_thread_id);
+  //   PRINT("record addr0 %llu\t addr1 %llu\n", record->address[0], record->address[1]);
+  //   PRINT("record value0 %d\t value1 %d\n", record->value[0], record->value[1]);
+  // }
+  
 
-  // Tell kernel to continue
-  // Do not need to sync stream.
-  // The function will return once the pageable buffer has been copied to the
-  // staging memory. for DMA transfer to device memory, but the DMA to final
-  // destination may not have completed. Only copy the first field because other
-  // fields are being updated by the GPU.
-  gpu_patch_buffer_host->full = 0;
+    // Tell kernel to continue
+    // Do not need to sync stream.
+    // The function will return once the pageable buffer has been copied to the
+    // staging memory. for DMA transfer to device memory, but the DMA to final
+    // destination may not have completed. Only copy the first field because other
+    // fields are being updated by the GPU.
+    gpu_patch_buffer_host->full = 0;
   GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyHostToDeviceAsync,
                             (gpu_patch_buffer_device, gpu_patch_buffer_host,
                              sizeof(gpu_patch_buffer_host->full),
@@ -724,6 +735,8 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
                                      Sanitizer_StreamHandle priority_stream,
                                      Sanitizer_StreamHandle kernel_stream,
                                      bool analysis_end) {
+  // PRINT("GPUTRIGGER -> sanitizer_kernel_analyze");
+  // mem_usage();
   if (analysis_end) {
     GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
                               (sanitizer_gpu_patch_buffer_addr_read_host,
@@ -753,7 +766,7 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
             sanitizer_gpu_patch_buffer_addr_write_host,
             sanitizer_gpu_patch_buffer_addr_write_device, priority_stream);
       }
-
+    
       GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
                                 (sanitizer_gpu_patch_buffer_addr_read_host,
                                  sanitizer_gpu_patch_buffer_addr_read_device,
@@ -905,7 +918,7 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
   hpctoolkit_cumod_st_t *cumod = (hpctoolkit_cumod_st_t *)module;
   uint32_t cubin_id = cumod->cubin_id;
   uint32_t mod_id = cumod->mod_id;
-
+  // mem_usage();
   // TODO(Keren): correlate metrics with api_node
 
   //    int block_sampling_frequency = sanitizer_block_sampling_frequency_get();
@@ -979,11 +992,13 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
     PRINT("num_records %zu\n", num_records);
 
     if (sanitizer_gpu_analysis_blocks == 0) {
+      // PRINT("buffer_analyze begin\n");
+      // mem_usage();
       buffer_analyze(persistent_id, correlation_id, cubin_id, mod_id,
                      sanitizer_gpu_patch_type, sanitizer_gpu_patch_record_size,
                      sanitizer_gpu_patch_buffer_host,
                      sanitizer_gpu_patch_buffer_device, priority_stream);
-
+      // mem_usage();
       PRINT("Sanitizer-> analysis cpu in process\n");
     }
 
@@ -1195,6 +1210,7 @@ static void sanitizer_subscribe_callback(void *userdata,
           ld->functionName, ld->gridDim_x, ld->gridDim_y, ld->gridDim_z,
           ld->blockDim_x, ld->blockDim_y, ld->blockDim_z, correlation_id,
           persistent_id, ((hpctoolkit_cumod_st_t *)ld->module)->mod_id);
+      // mem_usage();
       // thread-safe
       // Create a high priority stream for the context at the first time
       // TODO(Keren): change stream->hstream
@@ -1204,6 +1220,7 @@ static void sanitizer_subscribe_callback(void *userdata,
       sanitizer_kernel_launch_callback(correlation_id, ld->context,
                                        priority_stream, ld->function, grid_size,
                                        block_size, kernel_sampling);
+      //  @FindHao: todo flush now?
       sanitizer_device_flush_now();
     } else if (cbid == SANITIZER_CBID_LAUNCH_AFTER_SYSCALL_SETUP) {
       //            @FindHao todo: fix this in the future
@@ -1213,7 +1230,7 @@ static void sanitizer_subscribe_callback(void *userdata,
     } else if (cbid == SANITIZER_CBID_LAUNCH_END) {
       //            if (kernel_sampling) {
       PRINT("Sanitizer-> Sync kernel %s\n", ld->functionName);
-
+      // mem_usage();
       kernel_stream = sanitizer_kernel_stream_get(ld->context);
 
       sanitizer_kernel_launch_sync(persistent_id, correlation_id, ld->context,
@@ -1269,9 +1286,6 @@ static void sanitizer_subscribe_callback(void *userdata,
     // TODO(Keren): sync data
     switch (cbid) {
       case SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED: {
-        // @findhao: comment for api call in drcctprof
-        // sanitizer_device_flush();
-        // sanitizer_device_shutdown();
         sanitizer_device_flush_now();
         break;
       }
@@ -1371,7 +1385,7 @@ void sanitizer_process_init() {
 int sanitizer_callbacks_subscribe() {
   pid_t pid = getpid();
   PRINT("PID: %d\n", pid);
-
+  // mem_usage();
   // Get mode control from the env variable.
   const char *GPUPUNK_ANALYSIS_MODE_raw = getenv("GPUPUNK_ANALYSIS_MODE");
   if (GPUPUNK_ANALYSIS_MODE_raw) {
@@ -1425,7 +1439,8 @@ int sanitizer_callbacks_subscribe() {
   GPUTRIGGER_SANITIZER_CALL(
       sanitizerEnableDomain,
       (1, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_SYNCHRONIZE));
-
+  // PRINT("GPUTRIGGER -> sanitizer_callbacks_subscribe end.\n");
+  // mem_usage();
   return 0;
 }
 
@@ -1441,7 +1456,6 @@ int sanitizer_callbacks_subscribe() {
 
 void *__attribute__((weak))
 monitor_init_process(int *argc, char **argv, void *data) {
-  int i;
   PRINT("(default callback) parent = %d, argc = %d, argv = %p\n",
         (int)getppid(), (argc != NULL) ? *argc : 0, argv);
   PRINT("gputrigger-> start\n");
@@ -1455,14 +1469,16 @@ monitor_init_process(int *argc, char **argv, void *data) {
 void monitor_fini_process(int how, void *data) {
   sanitizer_device_flush();
   sanitizer_device_shutdown();
+  PRINT("gputrigger-> process finished\n");
 }
 
 void monitor_fini_thread(void *data) {
   sanitizer_device_flush();
+  PRINT("gputrigger-> thread finished\n");
 }
-__attribute__((destructor)) void notify_exit() {
-  PRINT("gputrigger-> exit\n");
-}
+// __attribute__((destructor)) void notify_exit() {
+//   PRINT("gputrigger-> exit\n");
+// }
 
 // __attribute__((constructor)) void notify_init() {
 //   long long with_libmonitor = 0;
@@ -1479,3 +1495,4 @@ __attribute__((destructor)) void notify_exit() {
 //     sanitizer_callbacks_subscribe();
 //   }
 // }
+

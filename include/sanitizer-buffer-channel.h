@@ -119,4 +119,6 @@ sanitizer_buffer_channel_balance_get
  sanitizer_buffer_channel_t *channel
 );
 
+void mem_usage();
+
 #endif

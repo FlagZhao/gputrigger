@@ -53,10 +53,11 @@
 #include "lib/prof-lean/bichannel.h"
 #include <malloc.h>
 
+// for memory getrusage
+#include <sys/resource.h>
 
-#include "sanitizer-buffer-channel.h"
 #include "sanitizer-buffer-channel-set.h"
-
+#include "sanitizer-buffer-channel.h"
 
 //******************************************************************************
 // macros
@@ -160,11 +161,12 @@ sanitizer_buffer_channel_produce
 )
 {
   sanitizer_buffer_channel_t *buf_channel = sanitizer_buffer_channel_get(type);
-
   sanitizer_buffer_t *b = sanitizer_buffer_alloc(buf_channel);
-
+  // PRINT("sanitizer-> sanitizer_buffer_alloc\n");
+  // mem_usage();
   sanitizer_buffer_produce(b, thread_id, cubin_id, mod_id, kernel_id, host_op_id, type, num_records, &buf_channel->balance, async);
-
+  // PRINT("sanitizer-> sanitizer_buffer_produce\n");
+  // mem_usage();
   return b;
 }
 
@@ -246,4 +248,10 @@ sanitizer_buffer_channel_balance_get
 )
 {
   return atomic_load(&channel->balance);
+}
+
+void mem_usage() {
+  struct rusage r_usage;
+  getrusage(RUSAGE_SELF, &r_usage);
+  PRINT("gputrigger-> current Memory usage: %ld KB\n", r_usage.ru_maxrss);
 }
