@@ -218,8 +218,8 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
       PRINT_ERR("ERROR: Can not access GPUPATCH_PATH\n");
       exit(-1);
     }
-    //@FindHao: todo, add more modes
-    used += sprintf(&env_FATBIN_PATCH[used], "%s", "/lib/gpu-patch.fatbin");
+    //TODO: @FindHao, add more modes
+    used += sprintf(&env_FATBIN_PATCH[used], "%s", "/lib/gpu-patch-addr-cct.fatbin");
     if (access(env_FATBIN_PATCH, R_OK) != 0) {
       PRINT_ERR("ERROR: Can not access FATBIN_PATCH %s\n", env_FATBIN_PATCH);
       exit(-1);
@@ -284,7 +284,6 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   REDSHOW_FN(redshow_cubin_cache_register, (cubin_id, mod_id, elf_vector->nsymbols, addrs,
                                             file_name));
   PRINT("Sanitizer-> Context %p Patch CUBIN: \n", context);
-  // @FindHao todo: add different patch mode
   // Instrument user code!
   GPUTRIGGER_SANITIZER_CALL(sanitizerAddPatchesFromFile,
                             (env_FATBIN_PATCH, context));
@@ -304,12 +303,12 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
                             (SANITIZER_INSTRUCTION_BLOCK_EXIT, module,
                              "sanitizer_block_exit_callback"));
-  GPUTRIGGER_SANITIZER_CALL(
-      sanitizerPatchInstructions,
-      (SANITIZER_INSTRUCTION_CALL, module, "sanitizer_instr_call_callback"));
-  GPUTRIGGER_SANITIZER_CALL(
-      sanitizerPatchInstructions,
-      (SANITIZER_INSTRUCTION_RET, module, "sanitizer_instr_ret_callback"));
+  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions, 
+                            (SANITIZER_INSTRUCTION_CALL, module, 
+                            "sanitizer_instr_call_callback"));
+  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
+                            (SANITIZER_INSTRUCTION_RET, module, 
+                            "sanitizer_instr_ret_callback"));
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchModule, (module));
   sanitizer_buffer_init(context);
 }
@@ -710,15 +709,14 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
   //   PRINT("record addr0 %llu\t addr1 %llu\n", record->address[0], record->address[1]);
   //   PRINT("record value0 %d\t value1 %d\n", record->value[0], record->value[1]);
   // }
-  
 
-    // Tell kernel to continue
-    // Do not need to sync stream.
-    // The function will return once the pageable buffer has been copied to the
-    // staging memory. for DMA transfer to device memory, but the DMA to final
-    // destination may not have completed. Only copy the first field because other
-    // fields are being updated by the GPU.
-    gpu_patch_buffer_host->full = 0;
+  // Tell kernel to continue
+  // Do not need to sync stream.
+  // The function will return once the pageable buffer has been copied to the
+  // staging memory. for DMA transfer to device memory, but the DMA to final
+  // destination may not have completed. Only copy the first field because other
+  // fields are being updated by the GPU.
+  gpu_patch_buffer_host->full = 0;
   GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyHostToDeviceAsync,
                             (gpu_patch_buffer_device, gpu_patch_buffer_host,
                              sizeof(gpu_patch_buffer_host->full),
@@ -765,7 +763,7 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
             sanitizer_gpu_patch_buffer_addr_write_host,
             sanitizer_gpu_patch_buffer_addr_write_device, priority_stream);
       }
-    
+
       GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
                                 (sanitizer_gpu_patch_buffer_addr_read_host,
                                  sanitizer_gpu_patch_buffer_addr_read_device,
@@ -1466,4 +1464,3 @@ void monitor_fini_thread(void *data) {
   sanitizer_device_flush();
   PRINT("gputrigger-> thread finished\n");
 }
-
