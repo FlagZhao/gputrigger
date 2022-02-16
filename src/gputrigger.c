@@ -77,7 +77,6 @@
 #include "cubin-id-map.h"
 #include "cubin-symbols.h"
 
-static __thread gpu_cct_record_t *gpu_cct_records = NULL;
 static __thread bool sanitizer_stop_flag = false;
 static __thread uint32_t sanitizer_thread_id_self = (1 << 30);
 static __thread int32_t sanitizer_thread_id_local = 0;
@@ -305,12 +304,12 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
                             (SANITIZER_INSTRUCTION_BLOCK_EXIT, module,
                              "sanitizer_block_exit_callback"));
-  // GPUTRIGGER_SANITIZER_CALL(
-  //     sanitizerPatchInstructions,
-  //     (SANITIZER_INSTRUCTION_CALL, module, "sanitizer_instr_call_callback"));
-  // GPUTRIGGER_SANITIZER_CALL(
-  //     sanitizerPatchInstructions,
-  //     (SANITIZER_INSTRUCTION_RET, module, "sanitizer_instr_ret_callback"));
+  GPUTRIGGER_SANITIZER_CALL(
+      sanitizerPatchInstructions,
+      (SANITIZER_INSTRUCTION_CALL, module, "sanitizer_instr_call_callback"));
+  GPUTRIGGER_SANITIZER_CALL(
+      sanitizerPatchInstructions,
+      (SANITIZER_INSTRUCTION_RET, module, "sanitizer_instr_ret_callback"));
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchModule, (module));
   sanitizer_buffer_init(context);
 }
@@ -1315,7 +1314,8 @@ void sanitizer_memory_page_analysis_enable() {
   char dir_name[PATH_MAX];
   output_dir_config(dir_name, "/memory_page/");
   REDSHOW_FN(redshow_output_dir_config, (REDSHOW_ANALYSIS_MEMORY_PAGE, dir_name));
-  sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_t);
+  sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_addr_cct_t);
+  sanitizer_gpu_patch_type = GPU_PATCH_TYPE_ADDRESS_CCT;
 }
 
 void sanitizer_device_flush() {
@@ -1444,16 +1444,6 @@ int sanitizer_callbacks_subscribe() {
   return 0;
 }
 
-// @FindHao: @todo is it will conflict with the constructor?
-// void __attribute__((weak))
-// monitor_init_library(void) {
-//   PRINT("gputrigger-> start\n");
-//   if (cuda_bind()) {
-//     PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
-//   }
-//   sanitizer_callbacks_subscribe();
-// }
-
 void *__attribute__((weak))
 monitor_init_process(int *argc, char **argv, void *data) {
   PRINT("(default callback) parent = %d, argc = %d, argv = %p\n",
@@ -1476,23 +1466,4 @@ void monitor_fini_thread(void *data) {
   sanitizer_device_flush();
   PRINT("gputrigger-> thread finished\n");
 }
-// __attribute__((destructor)) void notify_exit() {
-//   PRINT("gputrigger-> exit\n");
-// }
-
-// __attribute__((constructor)) void notify_init() {
-//   long long with_libmonitor = 0;
-//   const char *with_libmonitor_raw = getenv("W_LIBMONITOR");
-//   if (with_libmonitor_raw) {
-//     char *tmp;
-//     with_libmonitor = strtol(with_libmonitor_raw, &tmp, 10);
-//   }
-//   if (with_libmonitor == 0) {
-//     PRINT("gputrigger-> start in constructor\n");
-//     if (cuda_bind()) {
-//       PRINT_ERR("gputrigger-> unable to bind to NVIDIA CUDA library%s\n", dlerror());
-//     }
-//     sanitizer_callbacks_subscribe();
-//   }
-// }
 

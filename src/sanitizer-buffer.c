@@ -49,23 +49,19 @@
 
 #define DEBUG 0
 
-
 //******************************************************************************
 // local includes
 //******************************************************************************
 
 #include "sanitizer-buffer.h"
 
-
-#include <stddef.h>
 #include <gpu-patch.h>
 #include <malloc.h>
 #include <stdbool.h>
+#include <stddef.h>
 
-
-#include "sanitizer-buffer-channel.h"
 #include "gpu-channel-item-allocator.h"
-
+#include "sanitizer-buffer-channel.h"
 
 //******************************************************************************
 // type declarations
@@ -84,15 +80,11 @@ typedef struct sanitizer_buffer_t {
 } sanitizer_buffer_t;
 
 //******************************************************************************
-// interface operations 
+// interface operations
 //******************************************************************************
 
-void
-sanitizer_buffer_process
-(
- sanitizer_buffer_t *b
-)
-{
+void sanitizer_buffer_process(
+    sanitizer_buffer_t *b) {
   uint32_t thread_id = b->thread_id;
   uint32_t cubin_id = b->cubin_id;
   uint32_t mod_id = b->mod_id;
@@ -103,32 +95,23 @@ sanitizer_buffer_process
   REDSHOW_FN(redshow_analyze, (thread_id, cubin_id, mod_id, kernel_id, host_op_id, gpu_patch_buffer));
 }
 
-
 sanitizer_buffer_t *
-sanitizer_buffer_alloc
-(
- sanitizer_buffer_channel_t *channel
-)
-{
-    return channel_item_alloc(channel, sanitizer_buffer_t);
+sanitizer_buffer_alloc(
+    sanitizer_buffer_channel_t *channel) {
+  return channel_item_alloc(channel, sanitizer_buffer_t);
 }
 
-
-void
-sanitizer_buffer_produce
-(
- sanitizer_buffer_t *b,
- uint32_t thread_id,
- uint32_t cubin_id,
- uint32_t mod_id,
- int32_t kernel_id,
- uint64_t host_op_id,
- uint32_t type,
- size_t num_records,
- atomic_uint *balance,
- bool async
-)
-{
+void sanitizer_buffer_produce(
+    sanitizer_buffer_t *b,
+    uint32_t thread_id,
+    uint32_t cubin_id,
+    uint32_t mod_id,
+    int32_t kernel_id,
+    uint64_t host_op_id,
+    uint32_t type,
+    size_t num_records,
+    atomic_uint *balance,
+    bool async) {
   b->thread_id = thread_id;
   b->cubin_id = cubin_id;
   b->mod_id = mod_id;
@@ -141,25 +124,37 @@ sanitizer_buffer_produce
   if (b->gpu_patch_buffer == NULL) {
     // Spin waiting
     if (type == GPU_PATCH_TYPE_DEFAULT) {
-        while (atomic_load(balance) >= sanitizer_buffer_pool_size_get()) {
-            if (!async) {
-                b->gpu_patch_buffer = NULL;
-                return ;
-            }
-            sanitizer_process_signal();
+      while (atomic_load(balance) >= sanitizer_buffer_pool_size_get()) {
+        if (!async) {
+          b->gpu_patch_buffer = NULL;
+          return;
         }
-        size_t num_records = sanitizer_gpu_patch_record_num_get();
-      b->gpu_patch_buffer = (gpu_patch_buffer_t *) calloc(1, sizeof(gpu_patch_buffer_t));
+        sanitizer_process_signal();
+      }
+      size_t num_records = sanitizer_gpu_patch_record_num_get();
+      b->gpu_patch_buffer = (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
       b->gpu_patch_buffer->records = calloc(1, num_records * sizeof(gpu_patch_record_t));
       PRINT("Sanitizer-> Allocate gpu_patch_record_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_t));
+    } else if (type == GPU_PATCH_TYPE_ADDRESS_CCT) {
+      while (atomic_load(balance) >= sanitizer_buffer_pool_size_get()) {
+        if (!async) {
+          b->gpu_patch_buffer = NULL;
+          return;
+        }
+        sanitizer_process_signal();
+      }
+      size_t num_records = sanitizer_gpu_patch_record_num_get();
+      b->gpu_patch_buffer = (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
+      b->gpu_patch_buffer->records = calloc(1, num_records * sizeof(gpu_patch_record_addr_cct_t));
+      PRINT("Sanitizer-> Allocate gpu_patch_record_addr_cct_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_addr_cct_t));
     } else if (type == GPU_PATCH_TYPE_ADDRESS_PATCH) {
       size_t num_records = sanitizer_gpu_patch_record_num_get();
-      b->gpu_patch_buffer = (gpu_patch_buffer_t *) calloc(1, sizeof(gpu_patch_buffer_t));
+      b->gpu_patch_buffer = (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
       b->gpu_patch_buffer->records = calloc(1, num_records * sizeof(gpu_patch_record_address_t));
       PRINT("Sanitizer-> Allocate gpu_patch_record_address_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_address_t));
     } else if (type == GPU_PATCH_TYPE_ADDRESS_ANALYSIS) {
       size_t num_records = sanitizer_gpu_analysis_record_num_get();
-      b->gpu_patch_buffer = (gpu_patch_buffer_t *) calloc(1, sizeof(gpu_patch_buffer_t));
+      b->gpu_patch_buffer = (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
       b->gpu_patch_buffer->records = calloc(1, num_records * sizeof(gpu_patch_analysis_address_t));
       PRINT("Sanitizer-> Allocate gpu_patch_analysis_address_t buffer size %lu\n", num_records * sizeof(gpu_patch_analysis_address_t));
     }
@@ -168,25 +163,16 @@ sanitizer_buffer_produce
   }
 }
 
-
-void
-sanitizer_buffer_free
-(
- sanitizer_buffer_channel_t *channel, 
- sanitizer_buffer_t *b,
- atomic_uint *balance
-)
-{
+void sanitizer_buffer_free(
+    sanitizer_buffer_channel_t *channel,
+    sanitizer_buffer_t *b,
+    atomic_uint *balance) {
   channel_item_free(channel, b);
   atomic_fetch_add(balance, -1);
 }
 
-
 gpu_patch_buffer_t *
-sanitizer_buffer_entry_gpu_patch_buffer_get
-(
- sanitizer_buffer_t *b
-)
-{
+sanitizer_buffer_entry_gpu_patch_buffer_get(
+    sanitizer_buffer_t *b) {
   return b->gpu_patch_buffer;
 }
