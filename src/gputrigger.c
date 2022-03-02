@@ -82,12 +82,14 @@ static __thread uint32_t sanitizer_thread_id_self = (1 << 30);
 static __thread int32_t sanitizer_thread_id_local = 0;
 static __thread CUcontext sanitizer_thread_context = NULL;
 
+#define PERSISTANT_ID_INIT 0x08000000
+#define HOST_OP_ID_INIT 0x20000000
 static atomic_uint sanitizer_thread_id = ATOMIC_VAR_INIT(0);
 static atomic_uint sanitizer_process_thread_counter = ATOMIC_VAR_INIT(0);
 static atomic_bool sanitizer_process_awake_flag = ATOMIC_VAR_INIT(0);
 static atomic_bool sanitizer_process_stop_flag = ATOMIC_VAR_INIT(0);
-static atomic_int sanitizer_persistant_id = ATOMIC_VAR_INIT(0x08000000);
-static atomic_int sanitizer_host_op_id = ATOMIC_VAR_INIT(0x20000000);
+static atomic_int sanitizer_persistant_id = ATOMIC_VAR_INIT(PERSISTANT_ID_INIT);
+static atomic_int sanitizer_host_op_id = ATOMIC_VAR_INIT(HOST_OP_ID_INIT);
 
 // Host buffers are per-thread
 static __thread gpu_patch_buffer_t *sanitizer_gpu_patch_buffer_host = NULL;
@@ -1208,16 +1210,18 @@ static void sanitizer_subscribe_callback(void *userdata,
           ld->blockDim_x, ld->blockDim_y, ld->blockDim_z, correlation_id,
           persistent_id, ((hpctoolkit_cumod_st_t *)ld->module)->mod_id);
       // mem_usage();
+      int32_t flat_blocksize = block_size.x * block_size.y * block_size.z;
+      int32_t flat_grid_size = grid_size.x * grid_size.y * grid_size.z;
+      REDSHOW_FN(redshow_kernel_begin, (sanitizer_thread_id_local, persistent_id,
+                                        correlation_id, flat_grid_size, flat_blocksize, function_name));
       // thread-safe
       // Create a high priority stream for the context at the first time
       // TODO(Keren): change stream->hstream
-      REDSHOW_FN(redshow_kernel_begin, (sanitizer_thread_id_local, persistent_id,
-                                        correlation_id));
       priority_stream = sanitizer_priority_stream_get(ld->context);
       sanitizer_kernel_launch_callback(correlation_id, ld->context,
                                        priority_stream, ld->function, grid_size,
                                        block_size, kernel_sampling);
-      //  @FindHao: todo flush now?
+      //  @FindHao TODO: flush now?
       sanitizer_device_flush_now();
     } else if (cbid == SANITIZER_CBID_LAUNCH_AFTER_SYSCALL_SETUP) {
       //            @FindHao todo: fix this in the future
