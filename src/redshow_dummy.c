@@ -83,8 +83,9 @@ redshow_result_t redshow_analyze_dummy(uint32_t cpu_thread, uint32_t cubin_id, u
 __attribute__((noinline))
 redshow_result_t redshow_tool_dtoh_register_dummy(redshow_tool_dtoh_func func) { return REDSHOW_SUCCESS; }
 __attribute__((noinline))
-redshow_result_t redshow_kernel_begin_dummy(uint32_t cpu_thread, int32_t kernel_id,
-                                                                      uint64_t host_op_id) { return REDSHOW_SUCCESS; }
+redshow_result_t
+redshow_kernel_begin_dummy(uint32_t cpu_thread, int32_t kernel_id,
+                           uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, char* function_name) { return REDSHOW_SUCCESS; }
 __attribute__((noinline))
 redshow_result_t redshow_kernel_end_dummy(uint32_t cpu_thread, int32_t kernel_id,
                                                                     uint64_t host_op_id) { return REDSHOW_SUCCESS; }

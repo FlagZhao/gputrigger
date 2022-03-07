@@ -1211,9 +1211,9 @@ static void sanitizer_subscribe_callback(void *userdata,
           persistent_id, ((hpctoolkit_cumod_st_t *)ld->module)->mod_id);
       // mem_usage();
       int32_t flat_blocksize = block_size.x * block_size.y * block_size.z;
-      int32_t flat_grid_size = grid_size.x * grid_size.y * grid_size.z;
+      int32_t flat_gridsize = grid_size.x * grid_size.y * grid_size.z;
       REDSHOW_FN(redshow_kernel_begin, (sanitizer_thread_id_local, persistent_id,
-                                        correlation_id, flat_grid_size, flat_blocksize, function_name));
+                                        correlation_id, flat_gridsize, flat_blocksize, ld->functionName));
       // thread-safe
       // Create a high priority stream for the context at the first time
       // TODO(Keren): change stream->hstream
