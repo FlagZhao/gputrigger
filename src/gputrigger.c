@@ -144,7 +144,7 @@ static uint32_t sanitizer_gpu_analysis_type = GPU_PATCH_TYPE_ADDRESS_ANALYSIS;
 static bool sanitizer_read_trace_ignore = false;
 static bool sanitizer_data_flow_hash = false;
 // default type
-static redshow_analysis_type_t GPUPUNK_ANALYSIS_MODE = REDSHOW_ANALYSIS_MEMORY_PAGE;
+static redshow_analysis_type_t GPUPUNK_ANALYSIS_MODE = REDSHOW_ANALYSIS_MEMORY_ACCESS;
 // CPU async
 static bool sanitizer_analysis_async = false;
 typedef struct
@@ -220,7 +220,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
       PRINT_ERR("ERROR: Can not access GPUPATCH_PATH\n");
       exit(-1);
     }
-    //TODO: @FindHao, add more modes
+    // TODO: @FindHao, add more modes
     used += sprintf(&env_FATBIN_PATCH[used], "%s", "/lib/gpu-patch-addr-cct.fatbin");
     if (access(env_FATBIN_PATCH, R_OK) != 0) {
       PRINT_ERR("ERROR: Can not access FATBIN_PATCH %s\n", env_FATBIN_PATCH);
@@ -287,30 +287,32 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
                                             file_name));
   PRINT("Sanitizer-> Context %p Patch CUBIN: \n", context);
   // Instrument user code!
-  GPUTRIGGER_SANITIZER_CALL(sanitizerAddPatchesFromFile,
-                            (env_FATBIN_PATCH, context));
+  GPUTRIGGER_SANITIZER_CALL(sanitizerAddPatchesFromFile, (env_FATBIN_PATCH, context));
 
-  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
-                            (SANITIZER_INSTRUCTION_GLOBAL_MEMORY_ACCESS, module,
-                             "sanitizer_global_memory_access_callback"));
-  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
-                            (SANITIZER_INSTRUCTION_SHARED_MEMORY_ACCESS, module,
-                             "sanitizer_shared_memory_access_callback"));
-  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
-                            (SANITIZER_INSTRUCTION_LOCAL_MEMORY_ACCESS, module,
-                             "sanitizer_local_memory_access_callback"));
-  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
-                            (SANITIZER_INSTRUCTION_BLOCK_ENTER, module,
-                             "sanitizer_block_enter_callback"));
-  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
-                            (SANITIZER_INSTRUCTION_BLOCK_EXIT, module,
-                             "sanitizer_block_exit_callback"));
-  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions, 
-                            (SANITIZER_INSTRUCTION_CALL, module, 
-                            "sanitizer_instr_call_callback"));
-  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
-                            (SANITIZER_INSTRUCTION_RET, module, 
-                            "sanitizer_instr_ret_callback"));
+  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions, (SANITIZER_INSTRUCTION_BLOCK_ENTER, module, "sanitizer_block_enter_callback"));
+  GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions, (SANITIZER_INSTRUCTION_BLOCK_EXIT, module, "sanitizer_block_exit_callback"));
+
+  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS) {
+    GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
+                              (SANITIZER_INSTRUCTION_GLOBAL_MEMORY_ACCESS, module,
+                               "sanitizer_global_memory_access_callback"));
+    GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
+                              (SANITIZER_INSTRUCTION_SHARED_MEMORY_ACCESS, module,
+                               "sanitizer_shared_memory_access_callback"));
+    GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
+                              (SANITIZER_INSTRUCTION_LOCAL_MEMORY_ACCESS, module,
+                               "sanitizer_local_memory_access_callback"));
+  }
+
+  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS) {
+    GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
+                              (SANITIZER_INSTRUCTION_CALL, module,
+                               "sanitizer_instr_call_callback"));
+    GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
+                              (SANITIZER_INSTRUCTION_RET, module,
+                               "sanitizer_instr_ret_callback"));
+  }
+
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchModule, (module));
   sanitizer_buffer_init(context);
 }
@@ -1046,9 +1048,9 @@ void sanitizer_callbacks_unsubscribe() {
   GPUTRIGGER_SANITIZER_CALL(
       sanitizerEnableDomain,
       (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_LAUNCH));
-  GPUTRIGGER_SANITIZER_CALL(
-      sanitizerEnableDomain,
-      (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_UVM));
+  // GPUTRIGGER_SANITIZER_CALL(
+  //     sanitizerEnableDomain,
+  //     (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_UVM));
   GPUTRIGGER_SANITIZER_CALL(
       sanitizerEnableDomain,
       (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_RESOURCE));
@@ -1058,12 +1060,12 @@ void sanitizer_callbacks_unsubscribe() {
   GPUTRIGGER_SANITIZER_CALL(
       sanitizerEnableDomain,
       (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_MEMSET));
-  GPUTRIGGER_SANITIZER_CALL(
-      sanitizerEnableDomain,
-      (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_DRIVER_API));
-  GPUTRIGGER_SANITIZER_CALL(
-      sanitizerEnableDomain,
-      (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_RUNTIME_API));
+  // GPUTRIGGER_SANITIZER_CALL(
+  //     sanitizerEnableDomain,
+  //     (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_DRIVER_API));
+  // GPUTRIGGER_SANITIZER_CALL(
+  //     sanitizerEnableDomain,
+  //     (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_RUNTIME_API));
   GPUTRIGGER_SANITIZER_CALL(
       sanitizerEnableDomain,
       (0, sanitizer_subscriber_handle, SANITIZER_CB_DOMAIN_SYNCHRONIZE));
@@ -1311,11 +1313,30 @@ void sanitizer_value_pattern_analysis_enable() {
   sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_t);
 }
 
-void sanitizer_memory_page_analysis_enable() {
-  REDSHOW_FN(redshow_analysis_enable, (REDSHOW_ANALYSIS_MEMORY_PAGE));
+void sanitizer_memory_access_analysis_enable() {
+  REDSHOW_FN(redshow_analysis_enable, (REDSHOW_ANALYSIS_MEMORY_ACCESS));
   char dir_name[PATH_MAX];
   output_dir_config(dir_name, "/memory_page/");
-  REDSHOW_FN(redshow_output_dir_config, (REDSHOW_ANALYSIS_MEMORY_PAGE, dir_name));
+  REDSHOW_FN(redshow_output_dir_config, (REDSHOW_ANALYSIS_MEMORY_ACCESS, dir_name));
+  sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_addr_cct_t);
+  sanitizer_gpu_patch_type = GPU_PATCH_TYPE_ADDRESS_CCT;
+}
+
+void sanitizer_cct_analysis_enable() {
+  REDSHOW_FN(redshow_analysis_enable, (REDSHOW_ANALYSIS_CCT));
+  char dir_name[PATH_MAX];
+  output_dir_config(dir_name, "/cct/");
+  REDSHOW_FN(redshow_output_dir_config, (REDSHOW_ANALYSIS_CCT, dir_name));
+  sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_addr_cct_t);
+  sanitizer_gpu_patch_type = GPU_PATCH_TYPE_ADDRESS_CCT;
+}
+
+void sanitizer_cct_mem_access_analysis_enable() {
+  REDSHOW_FN(redshow_analysis_enable, (REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS));
+  char dir_name[PATH_MAX];
+  // @FindHao TODO: ?
+  output_dir_config(dir_name, "/cct_mem_page/");
+  REDSHOW_FN(redshow_output_dir_config, (REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS, dir_name));
   sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_addr_cct_t);
   sanitizer_gpu_patch_type = GPU_PATCH_TYPE_ADDRESS_CCT;
 }
@@ -1343,7 +1364,7 @@ void sanitizer_device_flush() {
 }
 
 void sanitizer_device_flush_now() {
-  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_PAGE) {
+  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS) {
     REDSHOW_FN(redshow_flush_now, (sanitizer_thread_id_local));
   }
 }
@@ -1398,9 +1419,17 @@ int sanitizer_callbacks_subscribe() {
     case REDSHOW_ANALYSIS_VALUE_PATTERN:
       sanitizer_value_pattern_analysis_enable();
       break;
-    case REDSHOW_ANALYSIS_MEMORY_PAGE:
+    case REDSHOW_ANALYSIS_MEMORY_ACCESS:
+      sanitizer_memory_access_analysis_enable();
+      break;
+    case REDSHOW_ANALYSIS_CCT:
+      sanitizer_cct_analysis_enable();
+      break;
+    case REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS:
+      sanitizer_cct_mem_access_analysis_enable();
+      break;
     default:
-      sanitizer_memory_page_analysis_enable();
+      sanitizer_cct_analysis_enable();
       break;
   }
   PRINT("GPUTRIGGER -> Working on %d mode.\n", GPUPUNK_ANALYSIS_MODE);
