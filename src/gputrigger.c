@@ -144,7 +144,7 @@ static uint32_t sanitizer_gpu_analysis_type = GPU_PATCH_TYPE_ADDRESS_ANALYSIS;
 static bool sanitizer_read_trace_ignore = false;
 static bool sanitizer_data_flow_hash = false;
 // default type
-static redshow_analysis_type_t GPUPUNK_ANALYSIS_MODE = REDSHOW_ANALYSIS_MEMORY_ACCESS;
+static redshow_analysis_type_t GPUPUNK_ANALYSIS_MODE = REDSHOW_ANALYSIS_CCT;
 // CPU async
 static bool sanitizer_analysis_async = false;
 typedef struct
@@ -1214,8 +1214,17 @@ static void sanitizer_subscribe_callback(void *userdata,
       // mem_usage();
       int32_t flat_blocksize = block_size.x * block_size.y * block_size.z;
       int32_t flat_gridsize = grid_size.x * grid_size.y * grid_size.z;
-      REDSHOW_FN(redshow_kernel_begin, (sanitizer_thread_id_local, persistent_id,
-                                        correlation_id, flat_gridsize, flat_blocksize, ld->functionName));
+      uint64_t function_pc;
+      uint64_t function_size;
+
+      sanitizerGetFunctionPcAndSize(ld->module, ld->functionName, &function_pc,
+                                    &function_size);
+      PRINT(
+          "redshow-> function pc %p, size %lu flat_blocksize %d, "
+          "flat_gridsize %d\n",
+          (void *)function_pc, function_size, flat_blocksize, flat_gridsize);
+      REDSHOW_FN(redshow_kernel_launch_begin, (sanitizer_thread_id_local, persistent_id,
+                                               correlation_id, flat_gridsize, flat_blocksize, ld->functionName, function_pc));
       // thread-safe
       // Create a high priority stream for the context at the first time
       // TODO(Keren): change stream->hstream
@@ -1233,9 +1242,32 @@ static void sanitizer_subscribe_callback(void *userdata,
     } else if (cbid == SANITIZER_CBID_LAUNCH_END) {
       //            if (kernel_sampling) {
       PRINT("Sanitizer-> Sync kernel %s\n", ld->functionName);
+      // correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
+      // // Look up persisitent id
+      // persistent_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
+      // //            if (kernel_sampling)
+      // //                kernel_sampling = true;
+      // //                @todo sampling and op map init
+      // grid_size.x = ld->gridDim_x;
+      // grid_size.y = ld->gridDim_y;
+      // grid_size.z = ld->gridDim_z;
+      // block_size.x = ld->blockDim_x;
+      // block_size.y = ld->blockDim_y;
+      // block_size.z = ld->blockDim_z;
+      // int32_t flat_blocksize = block_size.x * block_size.y * block_size.z;
+      // int32_t flat_gridsize = grid_size.x * grid_size.y * grid_size.z;
+      // uint64_t function_pc;
+      // uint64_t function_size;
+      // sanitizerGetFunctionPcAndSize(ld->module, ld->functionName, &function_pc,
+      //                               &function_size);
+      // PRINT(
+      //     "redshow-> function pc %p, size %lu flat_blocksize %d, "
+      //     "flat_gridsize %d\n",
+      //     (void *)function_pc, function_size, flat_blocksize, flat_gridsize);
+      // REDSHOW_FN(redshow_kernel_launch_end, (sanitizer_thread_id_local, persistent_id,
+      //                                        correlation_id, flat_gridsize, flat_blocksize, ld->functionName, function_pc));
       // mem_usage();
       kernel_stream = sanitizer_kernel_stream_get(ld->context);
-
       sanitizer_kernel_launch_sync(persistent_id, correlation_id, ld->context,
                                    ld->module, ld->function, priority_stream,
                                    kernel_stream, grid_size, block_size);
@@ -1244,9 +1276,6 @@ static void sanitizer_subscribe_callback(void *userdata,
       // NOTICE: Need to synchronize this stream even when this kernel is not
       // sampled. TO prevent data is incorrectly copied in the next round
       GPUTRIGGER_SANITIZER_CALL(sanitizerStreamSynchronize, (ld->hStream));
-
-      REDSHOW_FN(redshow_kernel_end, (sanitizer_thread_id_local, persistent_id,
-                                      correlation_id));
 
       //            kernel_sampling = true;
 

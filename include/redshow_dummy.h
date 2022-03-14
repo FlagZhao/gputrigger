@@ -95,7 +95,7 @@ typedef struct redshow_record_data {
  * @thread-safe: No
  */
 EXTERNC redshow_result_t redshow_output_dir_config_dummy(redshow_analysis_type_t analysis,
-                                                   const char *dir);
+                                                         const char *dir);
 
 /**
  * @brief Config default data type
@@ -399,8 +399,8 @@ EXTERNC redshow_result_t redshow_tool_dtoh_register_dummy(redshow_tool_dtoh_func
  * @param host_op_id
  * @return EXTERNC
  */
-EXTERNC redshow_result_t redshow_kernel_begin_dummy(uint32_t cpu_thread, int32_t kernel_id,
-                                                    uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, char *function_name);
+EXTERNC redshow_result_t redshow_kernel_launch_begin_dummy(uint32_t cpu_thread, int32_t kernel_id,
+                                                           uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, char *function_name, uint64_t function_pc);
 
 /**
  * @brief when a kernel ends
@@ -410,8 +410,8 @@ EXTERNC redshow_result_t redshow_kernel_begin_dummy(uint32_t cpu_thread, int32_t
  * @param host_op_id
  * @return EXTERNC
  */
-EXTERNC redshow_result_t redshow_kernel_end_dummy(uint32_t cpu_thread, int32_t kernel_id,
-                                                  uint64_t host_op_id);
+EXTERNC redshow_result_t redshow_kernel_launch_end_dummy(uint32_t cpu_thread, int32_t kernel_id,
+                                                         uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, char *function_name, uint64_t function_pc);
 
 /**
  * @brief Mark the begin of the current analysis region
