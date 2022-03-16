@@ -135,6 +135,14 @@ static uint32_t sanitizer_gpu_patch_type = GPU_PATCH_TYPE_DEFAULT;
 static int sanitizer_buffer_pool_size = 0;
 static int sanitizer_pc_views = 0;
 static int sanitizer_mem_views = 0;
+// sampling
+struct kernel_list{
+  struct kenrel_list *next;
+  char *kernel_name;
+};
+
+static struct kernel_list *kernel_whitelist = NULL;
+
 
 // Analysis info (GPU)
 static int sanitizer_gpu_analysis_record_num = 0;
@@ -204,6 +212,71 @@ void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size) {
       gpu_patch_record_num * GPU_PATCH_WARP_SIZE * 4;
   sanitizer_buffer_pool_size = buffer_pool_size;
 }
+//----------------------------------------------------------
+// sampling
+//----------------------------------------------------------
+
+void kernel_whitelist_init(){
+  const char *env_GPUPUNK_WHITELIST = getenv("GPUPUNK_WHITELIST");
+  if (env_GPUPUNK_WHITELIST) {
+    if (access(env_GPUPUNK_WHITELIST, R_OK) != 0) {
+      PRINT_ERR("ERROR: Can not access GPUPUNK_WHITELIST\n");
+      exit(-1);
+    }
+    FILE *fp = fopen(env_GPUPUNK_WHITELIST, "r");
+    if (fp == NULL) {
+      PRINT_ERR("ERROR: Can not open GPUPUNK_WHITELIST\n");
+      exit(-1);
+    }
+    char line[1024];
+    struct kernel_list *node = NULL;
+    
+    while (fgets(line, sizeof(line), fp) != NULL) {
+      if (line[0] == '#') {
+        continue;
+      }
+      char *p = strchr(line, '\n');
+      if (p) {
+        *p = '\0';
+      }
+      if (node == NULL){
+        node = (struct kernel_list *)malloc(sizeof(struct kernel_list));
+        node->next = NULL;
+        node->kernel_name = (char *)malloc(strlen(line) + 1);
+        strcpy(node->kernel_name, line);
+        kernel_whitelist = node;
+      } else {
+        struct kernel_list *tmp = (struct kernel_list *)malloc(sizeof(struct kernel_list));
+        tmp->next = NULL;
+        tmp->kernel_name = (char *)malloc(strlen(line) + 1);
+        strcpy(tmp->kernel_name, line);
+        node->next = tmp;
+        node = tmp;
+      }
+    }
+    // for debug
+    // struct kernel_list *tmp = kernel_whitelist;
+    // PRINT("GPUPUNK_WHITELIST: \n");
+    // while (tmp) {
+    //   PRINT("%s\n", tmp->kernel_name);
+    //   tmp = tmp->next;
+    // }
+    // PRINT("======");
+  }
+}
+
+struct kernel_list *kernel_whitelist_search(const char *kernel_name){
+  struct kernel_list *node = kernel_whitelist;
+  while (node != NULL) {
+    if (strcmp(node->kernel_name, kernel_name) == 0) {
+      return node;
+    }
+    node = node->next;
+  }
+  return NULL;
+}
+
+
 
 static void sanitizer_load_callback(CUcontext context, CUmodule module,
                                     const void *cubin, size_t cubin_size) {
@@ -580,7 +653,7 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context,
   int grid_dim = grid_size.x * grid_size.y * grid_size.z;
   int block_dim = block_size.x * block_size.y * block_size.z;
   //    @todo sampling frequency
-  int block_sampling_frequency = 1;
+  int block_sampling_frequency = kernel_sampling ? 1 : 0;
   int block_sampling_offset =
       kernel_sampling ? rand() % grid_dim % block_sampling_frequency : 0;
 
@@ -1187,18 +1260,20 @@ static void sanitizer_subscribe_callback(void *userdata,
     static __thread dim3 block_size = {0, 0, 0};
     static __thread Sanitizer_StreamHandle priority_stream = NULL;
     static __thread Sanitizer_StreamHandle kernel_stream = NULL;
+    // if it is true, this kernel will be executed 
     static __thread bool kernel_sampling = true;
     static __thread uint64_t correlation_id = 0;
     static __thread int32_t persistent_id = 0;
+    static __thread int32_t flat_blocksize = 0;
+    static __thread int32_t flat_gridsize = 0;
+    static __thread uint64_t function_pc;
+    static __thread uint64_t function_size;
     if (cbid == SANITIZER_CBID_LAUNCH_BEGIN) {
       // Use function list to filter functions
       // Get a place holder cct node
       correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
       // Look up persisitent id
       persistent_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
-      //            if (kernel_sampling)
-      //                kernel_sampling = true;
-      //                @todo sampling and op map init
       grid_size.x = ld->gridDim_x;
       grid_size.y = ld->gridDim_y;
       grid_size.z = ld->gridDim_z;
@@ -1212,10 +1287,14 @@ static void sanitizer_subscribe_callback(void *userdata,
           ld->blockDim_x, ld->blockDim_y, ld->blockDim_z, correlation_id,
           persistent_id, ((hpctoolkit_cumod_st_t *)ld->module)->mod_id);
       // mem_usage();
-      int32_t flat_blocksize = block_size.x * block_size.y * block_size.z;
-      int32_t flat_gridsize = grid_size.x * grid_size.y * grid_size.z;
-      uint64_t function_pc;
-      uint64_t function_size;
+      flat_blocksize = block_size.x * block_size.y * block_size.z;
+      flat_gridsize = grid_size.x * grid_size.y * grid_size.z;
+
+      if (kernel_whitelist != NULL){
+        if (kernel_whitelist_search(ld->functionName) == NULL){
+          kernel_sampling = false;
+        }
+      }
 
       sanitizerGetFunctionPcAndSize(ld->module, ld->functionName, &function_pc,
                                     &function_size);
@@ -1242,43 +1321,18 @@ static void sanitizer_subscribe_callback(void *userdata,
     } else if (cbid == SANITIZER_CBID_LAUNCH_END) {
       //            if (kernel_sampling) {
       PRINT("Sanitizer-> Sync kernel %s\n", ld->functionName);
-      // correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
-      // // Look up persisitent id
-      // persistent_id = atomic_fetch_add(&sanitizer_persistant_id, 1);
-      // //            if (kernel_sampling)
-      // //                kernel_sampling = true;
-      // //                @todo sampling and op map init
-      // grid_size.x = ld->gridDim_x;
-      // grid_size.y = ld->gridDim_y;
-      // grid_size.z = ld->gridDim_z;
-      // block_size.x = ld->blockDim_x;
-      // block_size.y = ld->blockDim_y;
-      // block_size.z = ld->blockDim_z;
-      // int32_t flat_blocksize = block_size.x * block_size.y * block_size.z;
-      // int32_t flat_gridsize = grid_size.x * grid_size.y * grid_size.z;
-      // uint64_t function_pc;
-      // uint64_t function_size;
-      // sanitizerGetFunctionPcAndSize(ld->module, ld->functionName, &function_pc,
-      //                               &function_size);
-      // PRINT(
-      //     "redshow-> function pc %p, size %lu flat_blocksize %d, "
-      //     "flat_gridsize %d\n",
-      //     (void *)function_pc, function_size, flat_blocksize, flat_gridsize);
-      // REDSHOW_FN(redshow_kernel_launch_end, (sanitizer_thread_id_local, persistent_id,
-      //                                        correlation_id, flat_gridsize, flat_blocksize, ld->functionName, function_pc));
       // mem_usage();
-      kernel_stream = sanitizer_kernel_stream_get(ld->context);
-      sanitizer_kernel_launch_sync(persistent_id, correlation_id, ld->context,
-                                   ld->module, ld->function, priority_stream,
-                                   kernel_stream, grid_size, block_size);
-      //            }
-
+      if (kernel_sampling) {
+        kernel_stream = sanitizer_kernel_stream_get(ld->context);
+        sanitizer_kernel_launch_sync(persistent_id, correlation_id, ld->context,
+                                     ld->module, ld->function, priority_stream,
+                                     kernel_stream, grid_size, block_size);
+      }
       // NOTICE: Need to synchronize this stream even when this kernel is not
       // sampled. TO prevent data is incorrectly copied in the next round
       GPUTRIGGER_SANITIZER_CALL(sanitizerStreamSynchronize, (ld->hStream));
-
-      //            kernel_sampling = true;
-
+      REDSHOW_FN(redshow_kernel_launch_end, (sanitizer_thread_id_local, persistent_id,
+                                             correlation_id, flat_gridsize, flat_blocksize, ld->functionName, function_pc));
       PRINT("Sanitizer-> kernel %s done\n", ld->functionName);
     }
   } else if (domain == SANITIZER_CB_DOMAIN_MEMCPY) {
@@ -1471,7 +1525,7 @@ int sanitizer_callbacks_subscribe() {
     buffer_pool_size = DEFAULT_BUFFER_POOL_SIZE;
 
   sanitizer_buffer_config(gpu_patch_record_num, buffer_pool_size);
-
+  kernel_whitelist_init();
   GPUTRIGGER_SANITIZER_CALL(
       sanitizerSubscribe,
       (&sanitizer_subscriber_handle, sanitizer_subscribe_callback, NULL));
