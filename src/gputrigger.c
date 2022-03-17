@@ -1295,7 +1295,7 @@ static void sanitizer_subscribe_callback(void *userdata,
           kernel_sampling = false;
         }
       }
-
+// @FindHao: This function's output is wrong.
       sanitizerGetFunctionPcAndSize(ld->module, ld->functionName, &function_pc,
                                     &function_size);
       PRINT(
@@ -1322,6 +1322,12 @@ static void sanitizer_subscribe_callback(void *userdata,
       //            if (kernel_sampling) {
       PRINT("Sanitizer-> Sync kernel %s\n", ld->functionName);
       // mem_usage();
+      sanitizerGetFunctionPcAndSize(ld->module, ld->functionName, &function_pc,
+                                    &function_size);
+      PRINT(
+          "SANITIZER_CBID_LAUNCH_END redshow-> function pc %p, size %lu flat_blocksize %d, "
+          "flat_gridsize %d\n",
+          (void *)function_pc, function_size, flat_blocksize, flat_gridsize);
       if (kernel_sampling) {
         kernel_stream = sanitizer_kernel_stream_get(ld->context);
         sanitizer_kernel_launch_sync(persistent_id, correlation_id, ld->context,

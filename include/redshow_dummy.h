@@ -1,3 +1,5 @@
+// This file should be a dummy mirror of redshow/redshow.h
+
 #ifndef REDSHOW_H
 #define REDSHOW_H
 
