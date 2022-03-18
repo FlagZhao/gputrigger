@@ -293,7 +293,7 @@ computeCubinFunctionOffsets
             if (ehdr->e_machine == EM_CUDA) {
                 symbols = computeSymbolOffsets(cubin_ptr, elf, &eh);
 //			  if(ENABLED(CUDA_CUBIN))
-                printSymbols(symbols);
+                // printSymbols(symbols);
                 elf_end(elf);
             }
         }

@@ -184,7 +184,7 @@ cubin_id_map_lookup
   }
 
 //  TMSG(DEFER_CTXT, "cubin_id map lookup: id=0x%lx (record %p)", id, result)
-printf("cubin_id map lookup: id=0x%lx (record %p)", id, result);
+// printf("cubin_id map lookup: id=0x%lx (record %p)", id, result);
   return result;
 }
 
@@ -283,11 +283,11 @@ cubin_id_transform(uint32_t cubin_id, uint32_t function_index, uint64_t offset)
   cubin_id_map_entry_t *entry = cubin_id_map_lookup(cubin_id);
   ip_normalized_t ip;
 //  TMSG(CUDA_CUBIN, "cubin_id %d", cubin_id);
-printf("cubin_id %d", cubin_id);
+// printf("cubin_id %d", cubin_id);
   if (entry != NULL) {
     uint32_t hpctoolkit_module_id = cubin_id_map_entry_hpctoolkit_id_get(entry);
 //    TMSG(CUDA_CUBIN, "get hpctoolkit_module_id %d", hpctoolkit_module_id);
-printf("get hpctoolkit_module_id %d", hpctoolkit_module_id);
+// printf("get hpctoolkit_module_id %d", hpctoolkit_module_id);
     const Elf_SymbolVector *vector = cubin_id_map_entry_elf_vector_get(entry);
     ip.lm_id = (uint16_t)hpctoolkit_module_id;
     ip.lm_ip = (uintptr_t)(vector->symbols[function_index] + offset);

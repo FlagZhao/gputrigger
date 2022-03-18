@@ -161,7 +161,7 @@ cubin_hash_map_lookup
     spinlock_unlock(&cubin_hash_map_lock);
 
 //  TMSG(DEFER_CTXT, "cubin_id map lookup: id=0x%lx (record %p)", id, result);
-    printf("cubin_id map lookup: id=0x%lx (record %p)", id, result);
+    // printf("cubin_id map lookup: id=0x%lx (record %p)", id, result);
     return result;
 }
 

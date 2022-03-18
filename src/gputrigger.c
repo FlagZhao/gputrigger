@@ -136,13 +136,13 @@ static int sanitizer_buffer_pool_size = 0;
 static int sanitizer_pc_views = 0;
 static int sanitizer_mem_views = 0;
 // sampling
-struct kernel_list{
+struct kernel_list {
   struct kenrel_list *next;
   char *kernel_name;
 };
-
 static struct kernel_list *kernel_whitelist = NULL;
-
+// default value is 0, which means no sampling
+static int32_t env_block_sampling_frequency;
 
 // Analysis info (GPU)
 static int sanitizer_gpu_analysis_record_num = 0;
@@ -216,7 +216,7 @@ void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size) {
 // sampling
 //----------------------------------------------------------
 
-void kernel_whitelist_init(){
+void kernel_whitelist_init() {
   const char *env_GPUPUNK_WHITELIST = getenv("GPUPUNK_WHITELIST");
   if (env_GPUPUNK_WHITELIST) {
     if (access(env_GPUPUNK_WHITELIST, R_OK) != 0) {
@@ -230,7 +230,7 @@ void kernel_whitelist_init(){
     }
     char line[1024];
     struct kernel_list *node = NULL;
-    
+
     while (fgets(line, sizeof(line), fp) != NULL) {
       if (line[0] == '#') {
         continue;
@@ -239,7 +239,7 @@ void kernel_whitelist_init(){
       if (p) {
         *p = '\0';
       }
-      if (node == NULL){
+      if (node == NULL) {
         node = (struct kernel_list *)malloc(sizeof(struct kernel_list));
         node->next = NULL;
         node->kernel_name = (char *)malloc(strlen(line) + 1);
@@ -265,7 +265,7 @@ void kernel_whitelist_init(){
   }
 }
 
-struct kernel_list *kernel_whitelist_search(const char *kernel_name){
+struct kernel_list *kernel_whitelist_search(const char *kernel_name) {
   struct kernel_list *node = kernel_whitelist;
   while (node != NULL) {
     if (strcmp(node->kernel_name, kernel_name) == 0) {
@@ -275,7 +275,6 @@ struct kernel_list *kernel_whitelist_search(const char *kernel_name){
   }
   return NULL;
 }
-
 
 
 static void sanitizer_load_callback(CUcontext context, CUmodule module,
@@ -653,7 +652,7 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context,
   int grid_dim = grid_size.x * grid_size.y * grid_size.z;
   int block_dim = block_size.x * block_size.y * block_size.z;
   //    @todo sampling frequency
-  int block_sampling_frequency = kernel_sampling ? 1 : 0;
+  int block_sampling_frequency = kernel_sampling ? env_block_sampling_frequency : 0;
   int block_sampling_offset =
       kernel_sampling ? rand() % grid_dim % block_sampling_frequency : 0;
 
@@ -996,7 +995,7 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
   // TODO(Keren): correlate metrics with api_node
 
   //    int block_sampling_frequency = sanitizer_block_sampling_frequency_get();
-  int block_sampling_frequency = 0;
+  int block_sampling_frequency = env_block_sampling_frequency;
   int grid_dim = grid_size.x * grid_size.y * grid_size.z;
   int block_dim = block_size.x * block_size.y * block_size.z;
   uint64_t num_threads = grid_dim * block_dim;
@@ -1260,7 +1259,7 @@ static void sanitizer_subscribe_callback(void *userdata,
     static __thread dim3 block_size = {0, 0, 0};
     static __thread Sanitizer_StreamHandle priority_stream = NULL;
     static __thread Sanitizer_StreamHandle kernel_stream = NULL;
-    // if it is true, this kernel will be executed 
+    // if it is true, this kernel will be executed
     static __thread bool kernel_sampling = true;
     static __thread uint64_t correlation_id = 0;
     static __thread int32_t persistent_id = 0;
@@ -1290,12 +1289,12 @@ static void sanitizer_subscribe_callback(void *userdata,
       flat_blocksize = block_size.x * block_size.y * block_size.z;
       flat_gridsize = grid_size.x * grid_size.y * grid_size.z;
 
-      if (kernel_whitelist != NULL){
-        if (kernel_whitelist_search(ld->functionName) == NULL){
+      if (kernel_whitelist != NULL) {
+        if (kernel_whitelist_search(ld->functionName) == NULL) {
           kernel_sampling = false;
         }
       }
-// @FindHao: This function's output is wrong.
+      // @FindHao: This function's output is wrong.
       sanitizerGetFunctionPcAndSize(ld->module, ld->functionName, &function_pc,
                                     &function_size);
       PRINT(
@@ -1532,6 +1531,7 @@ int sanitizer_callbacks_subscribe() {
 
   sanitizer_buffer_config(gpu_patch_record_num, buffer_pool_size);
   kernel_whitelist_init();
+  env_block_sampling_frequency = control_knob_value_get_int(GPUPUNK_SANITIZER_BLOCK_SAMPLEING_FREQUENCY);
   GPUTRIGGER_SANITIZER_CALL(
       sanitizerSubscribe,
       (&sanitizer_subscriber_handle, sanitizer_subscribe_callback, NULL));
