@@ -141,8 +141,9 @@ struct kernel_list {
   char *kernel_name;
 };
 static struct kernel_list *kernel_whitelist = NULL;
-// default value is 0, which means no sampling
+// default value is 1, which means that all block will be sampled
 static int32_t env_block_sampling_frequency;
+#define DEFAULT_BLOCK_SAMPLEING_FREQUENCY 1
 
 // Analysis info (GPU)
 static int sanitizer_gpu_analysis_record_num = 0;
@@ -1532,6 +1533,8 @@ int sanitizer_callbacks_subscribe() {
   sanitizer_buffer_config(gpu_patch_record_num, buffer_pool_size);
   kernel_whitelist_init();
   env_block_sampling_frequency = control_knob_value_get_int(GPUPUNK_SANITIZER_BLOCK_SAMPLEING_FREQUENCY);
+  if (env_block_sampling_frequency == 0)
+    env_block_sampling_frequency = DEFAULT_BLOCK_SAMPLEING_FREQUENCY;
   GPUTRIGGER_SANITIZER_CALL(
       sanitizerSubscribe,
       (&sanitizer_subscriber_handle, sanitizer_subscribe_callback, NULL));
