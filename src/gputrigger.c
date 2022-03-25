@@ -376,15 +376,19 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
                               (SANITIZER_INSTRUCTION_LOCAL_MEMORY_ACCESS, module,
                                "sanitizer_local_memory_access_callback"));
   }
-
-  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS) {
+  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PAGE_SHARING){
     GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
-                              (SANITIZER_INSTRUCTION_CALL, module,
-                               "sanitizer_instr_call_callback"));
-    GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
-                              (SANITIZER_INSTRUCTION_RET, module,
-                               "sanitizer_instr_ret_callback"));
+                              (SANITIZER_INSTRUCTION_GLOBAL_MEMORY_ACCESS, module,
+                               "sanitizer_global_memory_access_callback"));
   }
+    if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PAGE_SHARING) {
+      GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
+                                (SANITIZER_INSTRUCTION_CALL, module,
+                                 "sanitizer_instr_call_callback"));
+      GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
+                                (SANITIZER_INSTRUCTION_RET, module,
+                                 "sanitizer_instr_ret_callback"));
+    }
 
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchModule, (module));
   sanitizer_buffer_init(context);
@@ -1430,6 +1434,15 @@ void sanitizer_cct_mem_access_analysis_enable() {
   sanitizer_gpu_patch_type = GPU_PATCH_TYPE_ADDRESS_CCT;
 }
 
+void sanitizer_page_sharing_analysis_enable(){
+  REDSHOW_FN(redshow_analysis_enable, (REDSHOW_ANALYSIS_PAGE_SHARING));
+  char dir_name[PATH_MAX];
+  output_dir_config(dir_name, "/page_sharing/");
+  REDSHOW_FN(redshow_output_dir_config, (REDSHOW_ANALYSIS_PAGE_SHARING, dir_name));
+  sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_addr_cct_t);
+  sanitizer_gpu_patch_type = GPU_PATCH_TYPE_ADDRESS_CCT;
+}
+
 void sanitizer_device_flush() {
   if (sanitizer_stop_flag) {
     sanitizer_stop_flag_unset();
@@ -1453,7 +1466,7 @@ void sanitizer_device_flush() {
 }
 
 void sanitizer_device_flush_now() {
-  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS) {
+  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PAGE_SHARING) {
     REDSHOW_FN(redshow_flush_now, (sanitizer_thread_id_local));
   }
 }
@@ -1516,6 +1529,9 @@ int sanitizer_callbacks_subscribe() {
       break;
     case REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS:
       sanitizer_cct_mem_access_analysis_enable();
+      break;
+    case REDSHOW_ANALYSIS_PAGE_SHARING:
+      sanitizer_page_sharing_analysis_enable();
       break;
     default:
       sanitizer_cct_analysis_enable();
