@@ -259,7 +259,7 @@ main(int argc, char **argv)
   size_t filesize = statbuf.st_size;
 
   char *filebuf; 
-  filebuf = (char *) malloc(filesize);
+  filebuf = (char *)gputrigger_malloc(filesize);
 
   // read a file to hash
   FILE *file = fopen(filename, "r");
@@ -272,7 +272,7 @@ main(int argc, char **argv)
 
   // allocate space for hash
   int hash_len = crypto_hash_length();
-  unsigned char *hash = (unsigned char *) malloc(hash_len);
+  unsigned char *hash = (unsigned char *)gputrigger_malloc(hash_len);
 
   // compute hash
   int crypto_result = crypto_hash_compute(filebuf, filesize, hash, hash_len);

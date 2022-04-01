@@ -116,7 +116,7 @@ sanitizer_buffer_channel_alloc
 )
 {
   sanitizer_buffer_channel_t *b = 
-    calloc(1, sizeof(sanitizer_buffer_channel_t));
+    gputrigger_malloc(sizeof(sanitizer_buffer_channel_t));
 
   channel_init(b);
 

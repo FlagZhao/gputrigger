@@ -11,8 +11,7 @@
 
 #include "lib/prof-lean/spinlock.h"
 #include "lib/prof-lean/splay-macros.h"
-
-
+#include "mem.h"
 #include "sanitizer-stream-map.h"
 
 /******************************************************************************
@@ -167,7 +166,7 @@ sanitizer_stream_map_entry_new(CUstream stream)
 {
   sanitizer_stream_map_entry_t *e;
   e = (sanitizer_stream_map_entry_t *)
-    calloc(1, sizeof(sanitizer_stream_map_entry_t));
+    gputrigger_malloc(sizeof(sanitizer_stream_map_entry_t));
   e->stream = stream;
   e->left = NULL;
   e->right = NULL;

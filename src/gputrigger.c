@@ -187,7 +187,7 @@ static sanitizer_thread_t sanitizer_thread;
 
 static const int DEFAULT_GPU_PATCH_RECORD_NUM = 1280 * 1024;
 static const int DEFAULT_BUFFER_POOL_SIZE = 500;
-static const int DEFAULT_DEVICE_BUFFER_SIZE = 1024 * 1024 * 8;
+// static const int DEFAULT_DEVICE_BUFFER_SIZE = 1024 * 1024 * 8;
 
 //----------------------------------------------------------
 // sanitizer function pointers for late binding
@@ -241,15 +241,15 @@ void kernel_whitelist_init() {
         *p = '\0';
       }
       if (node == NULL) {
-        node = (struct kernel_list *)malloc(sizeof(struct kernel_list));
+        node = (struct kernel_list *)gputrigger_malloc(sizeof(struct kernel_list));
         node->next = NULL;
-        node->kernel_name = (char *)malloc(strlen(line) + 1);
+        node->kernel_name = (char *)gputrigger_malloc(strlen(line) + 1);
         strcpy(node->kernel_name, line);
         kernel_whitelist = node;
       } else {
-        struct kernel_list *tmp = (struct kernel_list *)malloc(sizeof(struct kernel_list));
+        struct kernel_list *tmp = (struct kernel_list *)gputrigger_malloc(sizeof(struct kernel_list));
         tmp->next = NULL;
-        tmp->kernel_name = (char *)malloc(strlen(line) + 1);
+        tmp->kernel_name = (char *)gputrigger_malloc(strlen(line) + 1);
         strcpy(tmp->kernel_name, line);
         node->next = tmp;
         node = tmp;
@@ -276,7 +276,6 @@ struct kernel_list *kernel_whitelist_search(const char *kernel_name) {
   }
   return NULL;
 }
-
 
 static void sanitizer_load_callback(CUcontext context, CUmodule module,
                                     const void *cubin, size_t cubin_size) {
@@ -343,7 +342,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
 
   // Query cubin function offsets
   uint64_t *addrs =
-      (uint64_t *)calloc(1, sizeof(uint64_t) * elf_vector->nsymbols);
+      (uint64_t *)gputrigger_malloc(sizeof(uint64_t) * elf_vector->nsymbols);
   for (i = 0; i < elf_vector->nsymbols; ++i) {
     addrs[i] = 0;
     if (elf_vector->symbols[i] != 0) {
@@ -376,19 +375,19 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
                               (SANITIZER_INSTRUCTION_LOCAL_MEMORY_ACCESS, module,
                                "sanitizer_local_memory_access_callback"));
   }
-  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PAGE_SHARING){
+  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PAGE_SHARING) {
     GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
                               (SANITIZER_INSTRUCTION_GLOBAL_MEMORY_ACCESS, module,
                                "sanitizer_global_memory_access_callback"));
   }
-    if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PAGE_SHARING) {
-      GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
-                                (SANITIZER_INSTRUCTION_CALL, module,
-                                 "sanitizer_instr_call_callback"));
-      GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
-                                (SANITIZER_INSTRUCTION_RET, module,
-                                 "sanitizer_instr_ret_callback"));
-    }
+  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PAGE_SHARING) {
+    GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
+                              (SANITIZER_INSTRUCTION_CALL, module,
+                               "sanitizer_instr_call_callback"));
+    GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
+                              (SANITIZER_INSTRUCTION_RET, module,
+                               "sanitizer_instr_ret_callback"));
+  }
 
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchModule, (module));
   sanitizer_buffer_init(context);
@@ -462,7 +461,7 @@ static void sanitizer_buffer_init(CUcontext context) {
 
     // Allocate reset record
     sanitizer_gpu_patch_buffer_reset =
-        (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
+        (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
     sanitizer_gpu_patch_buffer_reset->full = 0;
     sanitizer_gpu_patch_buffer_reset->analysis = 0;
     sanitizer_gpu_patch_buffer_reset->head_index = 0;
@@ -539,7 +538,7 @@ static void sanitizer_buffer_init(CUcontext context) {
                 sanitizer_gpu_analysis_record_size);
 
       sanitizer_gpu_patch_buffer_addr_read_reset =
-          (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
+          (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
       sanitizer_gpu_patch_buffer_addr_read_reset->full = 0;
       sanitizer_gpu_patch_buffer_addr_read_reset->analysis = 0;
       sanitizer_gpu_patch_buffer_addr_read_reset->head_index = 0;
@@ -590,7 +589,7 @@ static void sanitizer_buffer_init(CUcontext context) {
                 sanitizer_gpu_analysis_record_size);
 
       sanitizer_gpu_patch_buffer_addr_write_reset =
-          (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
+          (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
       sanitizer_gpu_patch_buffer_addr_write_reset->full = 0;
       sanitizer_gpu_patch_buffer_addr_write_reset->analysis = 0;
       sanitizer_gpu_patch_buffer_addr_write_reset->head_index = 0;
@@ -694,8 +693,7 @@ sanitizer_kernel_launch_callback(uint64_t correlation_id, CUcontext context,
   if (sanitizer_read_trace_ignore) {
     if (sanitizer_gpu_patch_aux_addr_dict_host == NULL) {
       sanitizer_gpu_patch_aux_addr_dict_host =
-          (gpu_patch_aux_address_dict_t *)calloc(
-              1, sizeof(gpu_patch_aux_address_dict_t));
+          (gpu_patch_aux_address_dict_t *)gputrigger_malloc(sizeof(gpu_patch_aux_address_dict_t));
     }
     memset(sanitizer_gpu_patch_aux_addr_dict_host->hit, 0,
            sizeof(uint32_t) * GPU_PATCH_ADDRESS_DICT_SIZE);
@@ -1025,13 +1023,13 @@ static void sanitizer_kernel_launch_sync(int32_t persistent_id,
   // Init a buffer on host
   if (sanitizer_gpu_patch_buffer_host == NULL) {
     sanitizer_gpu_patch_buffer_host =
-        (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
+        (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
 
     if (sanitizer_gpu_analysis_blocks != 0) {
       sanitizer_gpu_patch_buffer_addr_read_host =
-          (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
+          (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
       sanitizer_gpu_patch_buffer_addr_write_host =
-          (gpu_patch_buffer_t *)calloc(1, sizeof(gpu_patch_buffer_t));
+          (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
     }
   }
 
@@ -1434,7 +1432,7 @@ void sanitizer_cct_mem_access_analysis_enable() {
   sanitizer_gpu_patch_type = GPU_PATCH_TYPE_ADDRESS_CCT;
 }
 
-void sanitizer_page_sharing_analysis_enable(){
+void sanitizer_page_sharing_analysis_enable() {
   REDSHOW_FN(redshow_analysis_enable, (REDSHOW_ANALYSIS_PAGE_SHARING));
   char dir_name[PATH_MAX];
   output_dir_config(dir_name, "/page_sharing/");

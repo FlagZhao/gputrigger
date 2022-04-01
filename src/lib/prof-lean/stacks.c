@@ -312,7 +312,7 @@ int main(int argc, char **argv)
   int i;
   for (i = 0; i < 10; i++) {
     typed_stack_elem_ptr(int) 
-      item = (typed_stack_elem_ptr(int)) malloc(sizeof(typed_stack_elem(int)));
+      item = (typed_stack_elem_ptr(int))gputrigger_malloc(sizeof(typed_stack_elem(int)));
     item->value = i;
     typed_stack_elem_ptr_set(int, cstack)(item, 0);
     typed_stack_push(int, cstack)(&queue, item);
@@ -344,7 +344,7 @@ typed_stack_elem(int) *
 typed_stack_elem_fn(int,new)(int value)
 {
     typed_stack_elem(int) *e =
-      (typed_stack_elem(int) *) malloc(sizeof(int_s_element_t));
+      (typed_stack_elem(int) *)gputrigger_malloc(sizeof(int_s_element_t));
     e->value = value;
     typed_stack_elem_ptr_set(int, qtype)(&e->next, 0);
 }

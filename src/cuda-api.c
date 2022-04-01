@@ -83,13 +83,7 @@
 //*****************************************************************************
 // local include files
 //*****************************************************************************
-
-// #include <hpcrun/files.h>
-// #include <hpcrun/hpcrun_stats.h>
-// #include <hpcrun/messages/messages.h>
-// #include <hpcrun/sample-sources/libdl.h>
 #include <lib/prof-lean/spinlock.h>
-
 #include "cubin-hash-map.h"
 #include "cubin-id-map.h"
 #include "cuda-api.h"

@@ -10,6 +10,8 @@
 #include "stdbool.h"
 #include <stdio.h>
 #include <vector_types.h>
+#include "debug-info.h"
+#include "mem.h"
 
 #ifdef STANDALONE
 #include <redshow.h>
@@ -162,14 +164,6 @@ EXTERNC void sanitizer_device_shutdown();
 EXTERNC void sanitizer_buffer_config(int gpu_patch_record_num,
                                      int buffer_pool_size);
 
-#define SANITIZER_API_DEBUG 1
-#if SANITIZER_API_DEBUG
-#define PRINT(...) fprintf(stderr, __VA_ARGS__)
-#else
-#define PRINT(...)
-#endif
-
-#define PRINT_ERR(...) fprintf(stderr, __VA_ARGS__)
 
 #define GPUTRIGGER_GPUTRIGGER_H
 

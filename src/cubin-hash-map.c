@@ -60,7 +60,7 @@
 
 
 #include "cubin-hash-map.h"
-
+#include "mem.h"
 
 
 //*****************************************************************************
@@ -99,7 +99,7 @@ cubin_hash_map_entry_new
     cubin_hash_map_entry_t *e;
     unsigned int hash_length = crypto_hash_length();
     e = (cubin_hash_map_entry_t *)
-            calloc(1, sizeof(cubin_hash_map_entry_t) + hash_length);
+            gputrigger_malloc(sizeof(cubin_hash_map_entry_t) + hash_length);
     e->cubin_id = cubin_id;
     e->left = NULL;
     e->right = NULL;

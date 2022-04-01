@@ -152,7 +152,7 @@ typed_stack_elem(int) *
 typed_stack_elem_fn(int,new)(int value)
 {
   typed_stack_elem(int) *e = 
-    (typed_stack_elem(int)* ) malloc(sizeof(int_s_element_t));
+    (typed_stack_elem(int)* )gputrigger_malloc(sizeof(int_s_element_t));
   e->value = value;
   cstack_ptr_set(&e->next, 0);
 }
