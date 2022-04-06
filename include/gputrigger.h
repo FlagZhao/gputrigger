@@ -148,7 +148,6 @@ EXTERNC size_t sanitizer_gpu_patch_record_num_get();
 
 EXTERNC size_t sanitizer_gpu_analysis_record_num_get();
 
-EXTERNC void sanitizer_process_init();
 
 EXTERNC int sanitizer_buffer_pool_size_get();
 
