@@ -123,26 +123,19 @@ void sanitizer_buffer_produce(
   atomic_fetch_add(balance, 1);
   if (b->gpu_patch_buffer == NULL) {
     // Spin waiting
-    if (type == GPU_PATCH_TYPE_DEFAULT) {
-      while (atomic_load(balance) >= sanitizer_buffer_pool_size_get()) {
-        if (!async) {
-          b->gpu_patch_buffer = NULL;
-          return;
-        }
-        sanitizer_process_signal();
+    while (atomic_load(balance) >= sanitizer_buffer_pool_size_get()) {
+      if (!async) {
+        b->gpu_patch_buffer = NULL;
+        return;
       }
+      sanitizer_process_signal();
+    }
+    if (type == GPU_PATCH_TYPE_DEFAULT) {
       size_t num_records = sanitizer_gpu_patch_record_num_get();
       b->gpu_patch_buffer = (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
       b->gpu_patch_buffer->records = gputrigger_malloc(num_records * sizeof(gpu_patch_record_t));
       PRINT("Sanitizer-> Allocate gpu_patch_record_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_t));
     } else if (type == GPU_PATCH_TYPE_ADDRESS_CCT) {
-      while (atomic_load(balance) >= sanitizer_buffer_pool_size_get()) {
-        if (!async) {
-          b->gpu_patch_buffer = NULL;
-          return;
-        }
-        sanitizer_process_signal();
-      }
       size_t num_records = sanitizer_gpu_patch_record_num_get();
       b->gpu_patch_buffer = (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
       b->gpu_patch_buffer->records = gputrigger_malloc(num_records * sizeof(gpu_patch_record_addr_cct_t));
