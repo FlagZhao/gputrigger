@@ -1306,6 +1306,8 @@ static void sanitizer_subscribe_callback(void *userdata,
           (void *)function_pc, function_size, flat_blocksize, flat_gridsize);
       REDSHOW_FN(redshow_kernel_launch_begin, (sanitizer_thread_id_local, persistent_id,
                                                correlation_id, flat_gridsize, flat_blocksize, ld->functionName, function_pc));
+      // //  @FindHao TODO: flush now? for now.
+      // sanitizer_device_flush_now();
       // thread-safe
       // Create a high priority stream for the context at the first time
       // TODO(Keren): change stream->hstream
@@ -1313,24 +1315,22 @@ static void sanitizer_subscribe_callback(void *userdata,
       sanitizer_kernel_launch_callback(correlation_id, ld->context,
                                        priority_stream, ld->function, grid_size,
                                        block_size, kernel_sampling);
-      //  @FindHao TODO: flush now?
-      sanitizer_device_flush_now();
+
     } else if (cbid == SANITIZER_CBID_LAUNCH_AFTER_SYSCALL_SETUP) {
       //            @FindHao todo: fix this in the future
       //            if (gpupunk_preprocessor_kernel != 0 && kernel_sampling) {
       //                sanitizer_kernel_launch(ld->context);
       //            }
     } else if (cbid == SANITIZER_CBID_LAUNCH_END) {
-      //            if (kernel_sampling) {
-      PRINT("Sanitizer-> Sync kernel %s\n", ld->functionName);
-      // mem_usage();
-      sanitizerGetFunctionPcAndSize(ld->module, ld->functionName, &function_pc,
-                                    &function_size);
-      PRINT(
-          "SANITIZER_CBID_LAUNCH_END redshow-> function pc %p, size %lu flat_blocksize %d, "
-          "flat_gridsize %d\n",
-          (void *)function_pc, function_size, flat_blocksize, flat_gridsize);
       if (kernel_sampling) {
+        PRINT("Sanitizer-> Sync kernel %s\n", ld->functionName);
+        // mem_usage();
+        sanitizerGetFunctionPcAndSize(ld->module, ld->functionName, &function_pc,
+                                      &function_size);
+        PRINT(
+            "SANITIZER_CBID_LAUNCH_END redshow-> function pc %p, size %lu flat_blocksize %d, "
+            "flat_gridsize %d\n",
+            (void *)function_pc, function_size, flat_blocksize, flat_gridsize);
         kernel_stream = sanitizer_kernel_stream_get(ld->context);
         sanitizer_kernel_launch_sync(persistent_id, correlation_id, ld->context,
                                      ld->module, ld->function, priority_stream,
@@ -1380,6 +1380,7 @@ static void sanitizer_subscribe_callback(void *userdata,
     // TODO(Keren): sync data
     switch (cbid) {
       case SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED: {
+        PRINT("GPUTRIGGER-> SANITIZER_CBID_SYNCHRONIZE_STREAM_SYNCHRONIZED\n");
         sanitizer_device_flush_now();
         break;
       }
