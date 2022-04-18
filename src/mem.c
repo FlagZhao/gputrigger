@@ -62,8 +62,8 @@ gputrigger_mmap_anon(size_t size) {
     num_segments++;
     total_allocation += size;
   }
-  PRINT_INFO("MALLOC %s: size = %ld, fd = %d, addr = %p\n",
-             __func__, size, fd, addr);
+  // PRINT_INFO("MALLOC %s: size = %ld, fd = %d, addr = %p\n",
+  //            __func__, size, fd, addr);
   return addr;
 }
 
@@ -84,7 +84,7 @@ gputrigger_malloc(size_t size) {
     PRINT_ERR("Malloc Error: %s shutting down\n", __func__);
     exit(-2);
   }
-  PRINT_INFO("MALLOC %s: size = %ld, addr = %p\n", __func__, size, addr);
+  // PRINT_INFO("MALLOC %s: size = %ld, addr = %p\n", __func__, size, addr);
   total_non_freeable += size;
   return addr;
 }
