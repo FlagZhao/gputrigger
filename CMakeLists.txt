@@ -34,8 +34,16 @@ else()
     endif()
 endif()
 
-# find_package(MbedTLS)
+# find_package(MbedTLS REQUIRED)
 # find_package(LibElf)
+include(FindLibElf.cmake)
+include(FindMbedTLS.cmake)
+
+message(INFO "==========")
+message(STATUS ${LIBELF_INCLUDE_DIRS})
+message(STATUS ${LIBELF_LIBRARIES_PATH})
+message(STATUS ${MBEDTLS_INCLUDE_DIRS})
+message(STATUS ${MBEDCRYPTO_LIBRARY_PATH})
 
 set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
@@ -64,12 +72,15 @@ include_directories(${SANITIZER_PATH}/include/
                 ${CMAKE_CURRENT_LIST_DIR}/include/
                 ${CMAKE_CURRENT_LIST_DIR}/src/
                 ${gpu_patch_path}/include/
+                ${LIBELF_INCLUDE_DIRS}
+                ${MBEDTLS_INCLUDE_DIRS}
                 )
+                
 message(INFO ${SANITIZER_PATH} ${CUDAToolkit_NVCC_EXECUTABLE})
 
 # find_library(redshow redshow HINTS ${redshow_path}/lib)
 
-add_link_options(-L${SANITIZER_PATH}  -fPIC -shared)
+add_link_options(-L${SANITIZER_PATH}     -L${MBEDTLS_LIBRARY_PATH}       -L${MBEDCRYPTO_LIBRARY_PATH}      -L${LIBELF_LIBRARIES_PATH} -fPIC -shared)
 # add_custom_target(gputrigger_patch.fatbin ALL ${CUDAToolkit_NVCC_EXECUTABLE} -o gputrigger_patch.fatbin ${CMAKE_CUDA_FLAGS} --fatbin --keep-device-functions -Xptxas --compile-as-tools-patch -g  -I${SANITIZER_PATH}/include/ -I${CUDAToolkit_TARGET_DIR}/include/ -c ${CMAKE_CURRENT_LIST_DIR}/gpu-patch.cu )
 # set_property(TARGET gputrigger_patch.fatbin PROPERTY CUDA_ARCHITECTURES "70;75;80;86")
 
@@ -81,11 +92,14 @@ file(GLOB PROF_LEAN_headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/src/lib
 add_library(gputrigger SHARED ${gputrigger_SRC} ${DIR_PROF_LEAN} ${gputrigger_headers} ${PROF_LEAN_headers})
 
 target_link_libraries(gputrigger PUBLIC
+
         -lmbedcrypto
+        -lmbedtls
         # ${redshow}
         # -lredshow
         # -L${redshow_path}/lib
         -lelf
+        
         -lsanitizer-public
         -lcuda
         -lcudart

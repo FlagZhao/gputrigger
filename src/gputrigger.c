@@ -912,6 +912,115 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
   }
 }
 
+//******
+// The preprocessor kernel launch for analysis
+//******
+static void gpu_preprocessor_launch(int32_t persistent_id,
+                                     uint64_t correlation_id, uint32_t cubin_id,
+                                     uint32_t mod_id,
+                                     Sanitizer_StreamHandle priority_stream,
+                                     Sanitizer_StreamHandle kernel_stream,
+                                     bool analysis_end) {
+  // PRINT("GPUTRIGGER -> sanitizer_kernel_analyze");
+  // mem_usage();
+  if (analysis_end) {
+    GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
+                              (sanitizer_gpu_patch_buffer_addr_read_host,
+                               sanitizer_gpu_patch_buffer_addr_read_device,
+                               sizeof(gpu_patch_buffer_t), priority_stream));
+
+    GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
+                              (sanitizer_gpu_patch_buffer_addr_write_host,
+                               sanitizer_gpu_patch_buffer_addr_write_device,
+                               sizeof(gpu_patch_buffer_t), priority_stream));
+
+    while (sanitizer_gpu_patch_buffer_addr_read_host->num_threads != 0) {
+      if (sanitizer_gpu_patch_buffer_addr_read_host->full != 0) {
+        PRINT("Sanitizer-> read analysis address\n");
+        buffer_analyze(
+            persistent_id, correlation_id, cubin_id, mod_id,
+            GPU_PATCH_TYPE_ADDRESS_ANALYSIS, sanitizer_gpu_analysis_record_size,
+            sanitizer_gpu_patch_buffer_addr_read_host,
+            sanitizer_gpu_patch_buffer_addr_read_device, priority_stream);
+      }
+
+      if (sanitizer_gpu_patch_buffer_addr_write_host->full != 0) {
+        PRINT("Sanitizer-> write analysis address\n");
+        buffer_analyze(
+            persistent_id, correlation_id, cubin_id, mod_id,
+            GPU_PATCH_TYPE_ADDRESS_ANALYSIS, sanitizer_gpu_analysis_record_size,
+            sanitizer_gpu_patch_buffer_addr_write_host,
+            sanitizer_gpu_patch_buffer_addr_write_device, priority_stream);
+      }
+
+      GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
+                                (sanitizer_gpu_patch_buffer_addr_read_host,
+                                 sanitizer_gpu_patch_buffer_addr_read_device,
+                                 sizeof(gpu_patch_buffer_t), priority_stream));
+
+      GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
+                                (sanitizer_gpu_patch_buffer_addr_write_host,
+                                 sanitizer_gpu_patch_buffer_addr_write_device,
+                                 sizeof(gpu_patch_buffer_t), priority_stream));
+    }
+
+    // To ensure analysis is done
+    GPUTRIGGER_SANITIZER_CALL(sanitizerStreamSynchronize, (kernel_stream));
+
+    // Last analysis
+    PRINT("Sanitizer-> read analysis address\n");
+    buffer_analyze(
+        persistent_id, correlation_id, cubin_id, mod_id,
+        GPU_PATCH_TYPE_ADDRESS_ANALYSIS, sanitizer_gpu_analysis_record_size,
+        sanitizer_gpu_patch_buffer_addr_read_host,
+        sanitizer_gpu_patch_buffer_addr_read_device, priority_stream);
+
+    PRINT("Sanitizer-> write analysis address\n");
+    buffer_analyze(
+        persistent_id, correlation_id, cubin_id, mod_id,
+        GPU_PATCH_TYPE_ADDRESS_ANALYSIS, sanitizer_gpu_analysis_record_size,
+        sanitizer_gpu_patch_buffer_addr_write_host,
+        sanitizer_gpu_patch_buffer_addr_write_device, priority_stream);
+
+    // Do not enter later code
+    PRINT("Sanitizer-> analysis gpu done\n");
+
+    return;
+  }
+
+  GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
+                            (sanitizer_gpu_patch_buffer_addr_read_host,
+                             sanitizer_gpu_patch_buffer_addr_read_device,
+                             sizeof(gpu_patch_buffer_t), priority_stream));
+
+  if (sanitizer_gpu_patch_buffer_addr_read_host->full != 0) {
+    PRINT("Sanitizer-> read analysis address\n");
+    buffer_analyze(
+        persistent_id, correlation_id, cubin_id, mod_id,
+        GPU_PATCH_TYPE_ADDRESS_ANALYSIS, sanitizer_gpu_analysis_record_size,
+        sanitizer_gpu_patch_buffer_addr_read_host,
+        sanitizer_gpu_patch_buffer_addr_read_device, priority_stream);
+
+    PRINT("Sanitizer-> analysis gpu in process\n");
+  }
+
+  GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,
+                            (sanitizer_gpu_patch_buffer_addr_write_host,
+                             sanitizer_gpu_patch_buffer_addr_write_device,
+                             sizeof(gpu_patch_buffer_t), priority_stream));
+
+  if (sanitizer_gpu_patch_buffer_addr_write_host->full != 0) {
+    PRINT("Sanitizer-> write analysis address\n");
+    buffer_analyze(
+        persistent_id, correlation_id, cubin_id, mod_id,
+        GPU_PATCH_TYPE_ADDRESS_ANALYSIS, sanitizer_gpu_analysis_record_size,
+        sanitizer_gpu_patch_buffer_addr_write_host,
+        sanitizer_gpu_patch_buffer_addr_write_device, priority_stream);
+
+    PRINT("Sanitizer-> analysis gpu in process\n");
+  }
+}
+
 //******************************************************************************
 // asynchronous process thread
 //******************************************************************************
@@ -1318,10 +1427,9 @@ static void sanitizer_subscribe_callback(void *userdata,
                                        block_size, kernel_sampling);
 
     } else if (cbid == SANITIZER_CBID_LAUNCH_AFTER_SYSCALL_SETUP) {
-      //            @FindHao todo: fix this in the future
-      //            if (enable_gpupunk_preprocessor != 0 && kernel_sampling) {
-      //                sanitizer_kernel_launch(ld->context);
-      //            }
+                 if (enable_gpupunk_preprocessor != 0 && kernel_sampling) {
+                     sanitizer_kernel_launch(ld->context);
+                 }
     } else if (cbid == SANITIZER_CBID_LAUNCH_END) {
       if (kernel_sampling) {
         PRINT("Sanitizer-> Sync kernel %s\n", ld->functionName);
