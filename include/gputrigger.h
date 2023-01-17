@@ -67,12 +67,13 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
                            uint32_t gpu_patch_type, size_t record_size,
                            gpu_patch_buffer_t *gpu_patch_buffer_host,
                            gpu_patch_buffer_t *gpu_patch_buffer_device,
-                           Sanitizer_StreamHandle priority_stream);
+                           Sanitizer_StreamHandle priority_stream, CUcontext context);
 }
 extern "C" {
 static void sanitizer_kernel_analyze(int32_t persistent_id,
                                      uint64_t correlation_id, uint32_t cubin_id,
                                      uint32_t mod_id,
+                                     CUcontext context,
                                      Sanitizer_StreamHandle priority_stream,
                                      Sanitizer_StreamHandle kernel_stream,
                                      bool analysis_end);
@@ -115,10 +116,11 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
                            uint32_t gpu_patch_type, size_t record_size,
                            gpu_patch_buffer_t *gpu_patch_buffer_host,
                            gpu_patch_buffer_t *gpu_patch_buffer_device,
-                           Sanitizer_StreamHandle priority_stream);
+                           Sanitizer_StreamHandle priority_stream,CUcontext context);
 static void sanitizer_kernel_analyze(int32_t persistent_id,
                                      uint64_t correlation_id, uint32_t cubin_id,
                                      uint32_t mod_id,
+                                     CUcontext context,
                                      Sanitizer_StreamHandle priority_stream,
                                      Sanitizer_StreamHandle kernel_stream,
                                      bool analysis_end);

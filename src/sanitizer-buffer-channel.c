@@ -157,14 +157,15 @@ sanitizer_buffer_channel_produce
  uint64_t host_op_id,
  uint32_t type,
  size_t num_records,
- bool async
+ bool async,
+ CUcontext context
 )
 {
   sanitizer_buffer_channel_t *buf_channel = sanitizer_buffer_channel_get(type);
   sanitizer_buffer_t *b = sanitizer_buffer_alloc(buf_channel);
   // PRINT("sanitizer-> sanitizer_buffer_alloc\n");
   // mem_usage();
-  sanitizer_buffer_produce(b, thread_id, cubin_id, mod_id, kernel_id, host_op_id, type, num_records, &buf_channel->balance, async);
+  sanitizer_buffer_produce(b, thread_id, cubin_id, mod_id, kernel_id, host_op_id, type, num_records, &buf_channel->balance, async,context);
   // PRINT("sanitizer-> sanitizer_buffer_produce\n");
   // mem_usage();
   return b;
