@@ -12,8 +12,8 @@ enable_language(CUDA)
 # endif()
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "DEBUG" CACHE STRING
-            "Default build type: DEBUG" FORCE)
+    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
+    "Default build type: RelWithDebInfo" FORCE)
 endif()
 
 
@@ -48,6 +48,13 @@ endif()
 include(FindLibElf.cmake)
 include(FindMbedTLS.cmake)
 
+if(NOT MBEDTLS_LIBRARY_PATH)
+    message(FATAL_ERROR "You need to specify mbedtls library path. ")
+endif()
+
+if(NOT LIBELF_LIBRARIES_PATH)
+    message(FATAL_ERROR "You need to specify libelf library path. ")
+endif()
 message(INFO "==========")
 message(STATUS ${LIBELF_INCLUDE_DIRS})
 message(STATUS ${LIBELF_LIBRARIES_PATH})
@@ -73,8 +80,11 @@ endif()
 
 if(NOT gpu_patch_path)
     message(INFO "Use default gpu_patch_path:" ${CMAKE_CURRENT_LIST_DIR}/gpu-patch/ )
+    set(gpu_patch_path ${CMAKE_CURRENT_LIST_DIR}/gpupunk/gpu-patch/)
+    #for debug
     set(gpu_patch_path /home/yzhao62/gpupunk/gpu-patch/)
 endif()
+
 
 include_directories(${SANITIZER_PATH}/include/ 
                 ${CUDAToolkit_TARGET_DIR}/include/ 
@@ -96,8 +106,6 @@ find_library(redshow redshow HINTS ${redshow_path}/build)
 set(redshow ${redshow_path}/install/lib/libredshow.a)
 
 # message("redshow is ${redshow}")
-
-set(MBEDTLS_LIBRARY_PATH /home/yzhao62/spack/opt/spack/linux-ubuntu20.04-cortex_a72/gcc-9.4.0/mbedtls-3.1.0-2n4kzohm7bixszwrcszrde6gadynb3vh/)
 
 
 add_link_options(-L${SANITIZER_PATH}     -L${MBEDTLS_LIBRARY_PATH}       -L${MBEDCRYPTO_LIBRARY_PATH}      -L${LIBELF_LIBRARIES_PATH}      -L${redshow_path}/install/lib -fPIC -shared -lstdc++)

@@ -27,6 +27,24 @@
     args;                   \
   }
 
+#define SANITIZER_FN_NAME(f) f
+
+#define SANITIZER_FN(fn, args) \
+  static SanitizerResult(*SANITIZER_FN_NAME(fn)) args
+
+#define GPUTRIGGER_SANITIZER_CALL(fn, args)              \
+  {                                                      \
+    SanitizerResult status = SANITIZER_FN_NAME(fn) args; \
+    if (status != SANITIZER_SUCCESS) {                   \
+      sanitizer_error_report(status, #fn);               \
+    }                                                    \
+  }
+
+#define GPUTRIGGER_SANITIZER_CALL_NO_CHECK(fn, args) \
+  {                                                  \
+    SANITIZER_FN_NAME(fn)                            \
+    args;                                            \
+  }
 
 
 #ifdef __cplusplus

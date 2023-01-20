@@ -168,24 +168,6 @@ typedef struct
 static sanitizer_thread_t sanitizer_thread;
 
 //#define DYN_FN_NAME(f) f ## _fn
-#define SANITIZER_FN_NAME(f) f
-
-#define SANITIZER_FN(fn, args) \
-  static SanitizerResult(*SANITIZER_FN_NAME(fn)) args
-
-#define GPUTRIGGER_SANITIZER_CALL(fn, args)              \
-  {                                                      \
-    SanitizerResult status = SANITIZER_FN_NAME(fn) args; \
-    if (status != SANITIZER_SUCCESS) {                   \
-      sanitizer_error_report(status, #fn);               \
-    }                                                    \
-  }
-
-#define GPUTRIGGER_SANITIZER_CALL_NO_CHECK(fn, args) \
-  {                                                  \
-    SANITIZER_FN_NAME(fn)                            \
-    args;                                            \
-  }
 
 static const int DEFAULT_GPU_PATCH_RECORD_NUM = 1280 * 1024;
 static const int DEFAULT_BUFFER_POOL_SIZE = 500;
@@ -1334,10 +1316,11 @@ static void sanitizer_subscribe_callback(void *userdata,
         break;
       }
       case SANITIZER_CBID_RESOURCE_CONTEXT_CREATION_FINISHED: {
-        // Sanitizer_Resou
         Sanitizer_ResourceContextData *md = (Sanitizer_ResourceContextData *)cbdata;
-        PRINT("Context create");
-        GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (md->context, (void **)&sanitizer_gpu_patch_buffer_host, sizeof(gpu_patch_buffer_t)));
+        if(sanitizer_gpu_patch_buffer_host == NULL){
+          PRINT("Sanitizer-> Context create");
+          GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (md->context, (void **)&sanitizer_gpu_patch_buffer_host, sizeof(gpu_patch_buffer_t)));
+        }
         // sanitizer_buffer_init(md->context);
         // sanitizer_context_map_init(md->context);
         break;
@@ -1496,7 +1479,6 @@ static void sanitizer_subscribe_callback(void *userdata,
     // Let redshow update shadow memory
     REDSHOW_FN(redshow_memcpy_register, (persistent_id, correlation_id, src_host,
                                          md->srcAddress, dst_host, md->dstAddress, md->size));
-    Sanitizer_StreamHandle priority_stream = sanitizer_priority_stream_get(md->srcContext);
   } else if (domain == SANITIZER_CB_DOMAIN_MEMSET) {
     Sanitizer_MemsetData *md = (Sanitizer_MemsetData *)cbdata;
     uint64_t correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
