@@ -135,29 +135,19 @@ void sanitizer_buffer_produce(
       size_t num_records = sanitizer_gpu_patch_record_num_get();
       sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_t));
       sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t));
-      // b->gpu_patch_buffer = (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
-      // b->gpu_patch_buffer->records = gputrigger_malloc(num_records * sizeof(gpu_patch_record_t));
-      // sanitizerAllocHost()
       PRINT("Sanitizer-> Allocate gpu_patch_record_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_t));
     } else if (type == GPU_PATCH_TYPE_ADDRESS_CCT) {
       size_t num_records = sanitizer_gpu_patch_record_num_get();
-      // b->gpu_patch_buffer = (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
-      // b->gpu_patch_buffer->records = gputrigger_malloc(num_records * sizeof(gpu_patch_record_addr_cct_t));
       sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t));
       sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_addr_cct_t));
-
       PRINT("Sanitizer-> Allocate gpu_patch_record_addr_cct_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_addr_cct_t));
     } else if (type == GPU_PATCH_TYPE_ADDRESS_PATCH) {
       size_t num_records = sanitizer_gpu_patch_record_num_get();
-      // b->gpu_patch_buffer = (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
-      // b->gpu_patch_buffer->records = gputrigger_malloc(num_records * sizeof(gpu_patch_record_address_t));
       sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t));
       sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_address_t));
       PRINT("Sanitizer-> Allocate gpu_patch_record_address_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_address_t));
     } else if (type == GPU_PATCH_TYPE_ADDRESS_ANALYSIS) {
       size_t num_records = sanitizer_gpu_analysis_record_num_get();
-      // b->gpu_patch_buffer = (gpu_patch_buffer_t *)gputrigger_malloc(sizeof(gpu_patch_buffer_t));
-      // b->gpu_patch_buffer->records = gputrigger_malloc(num_records * sizeof(gpu_patch_analysis_address_t));
       sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t));
       sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_analysis_address_t));
       PRINT("Sanitizer-> Allocate gpu_patch_analysis_address_t buffer size %lu\n", num_records * sizeof(gpu_patch_analysis_address_t));

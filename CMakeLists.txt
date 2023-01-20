@@ -17,8 +17,8 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 
-SET(CMAKE_CXX_FLAGS "-O0")
-SET(CMAKE_C_FLAGS "-O0")
+# SET(CMAKE_CXX_FLAGS "-O0")
+# SET(CMAKE_C_FLAGS "-O0")
 # SET(CMAKE_C_FLAGS "-O0")
 
 if(${CMAKE_VERSION} VERSION_LESS "3.17.0") 
@@ -59,7 +59,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 # set(CMAKE_CXX_FLAGS " -Wall -Wextra")
-set(CAMKE_CXX_FLAGS " -DSTANDALONE -O0")
+set(CAMKE_CXX_FLAGS " -DSTANDALONE")
 
 set(SANITIZER_PATH ${CUDAToolkit_TARGET_DIR}/compute-sanitizer)
 # @findhao: drcctprof can not handle pthread

@@ -216,19 +216,6 @@ void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size) {
   sanitizer_buffer_pool_size = buffer_pool_size;
 }
 
-void memcpy_debug(Sanitizer_StreamHandle priority_stream, char* msg){
-
-    PRINT("\n\ndebugging: %s\n",msg);
-    PRINT("Host buffer addr is %p\nDevice buffer addr is %p\nStream is %p\n",sanitizer_gpu_patch_buffer_host,sanitizer_gpu_patch_buffer_device,priority_stream);
-    // gpu_patch_buffer_t *test = (gpu_patch_buffer_t*)malloc(sizeof(gpu_patch_buffer_t));
-    // GPUTRIGGER_SANITIZER_CALL(sanitizerMallocHost,(sanitizer_gpu_patch_buffer_host,sizeof(gpu_patch_buffer_t)));
-
-    GPUTRIGGER_SANITIZER_CALL(sanitizerMemcpyDeviceToHost,(sanitizer_gpu_patch_buffer_host,
-                                                          sanitizer_gpu_patch_buffer_device,
-                                                          sizeof(gpu_patch_buffer_t),priority_stream));
-    PRINT("Test memcpy Flags:%d   >>>>>>>>       msg:%s\n\n",sanitizer_gpu_patch_buffer_host->full,msg);
-
-}
 //----------------------------------------------------------
 // sampling
 //----------------------------------------------------------
@@ -1510,9 +1497,6 @@ static void sanitizer_subscribe_callback(void *userdata,
     REDSHOW_FN(redshow_memcpy_register, (persistent_id, correlation_id, src_host,
                                          md->srcAddress, dst_host, md->dstAddress, md->size));
     Sanitizer_StreamHandle priority_stream = sanitizer_priority_stream_get(md->srcContext);
-    // if(buffer_inited){
-    //   memcpy_debug(priority_stream,"MEMCPY_CALLBACK");
-    // }
   } else if (domain == SANITIZER_CB_DOMAIN_MEMSET) {
     Sanitizer_MemsetData *md = (Sanitizer_MemsetData *)cbdata;
     uint64_t correlation_id = atomic_fetch_add(&sanitizer_host_op_id, 1);
