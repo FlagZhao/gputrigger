@@ -27,6 +27,24 @@
     args;                   \
   }
 
+#define SANITIZER_FN_NAME(f) f
+
+#define SANITIZER_FN(fn, args) \
+  static SanitizerResult(*SANITIZER_FN_NAME(fn)) args
+
+#define GPUTRIGGER_SANITIZER_CALL(fn, args)              \
+  {                                                      \
+    SanitizerResult status = SANITIZER_FN_NAME(fn) args; \
+    if (status != SANITIZER_SUCCESS) {                   \
+      sanitizer_error_report(status, #fn);               \
+    }                                                    \
+  }
+
+#define GPUTRIGGER_SANITIZER_CALL_NO_CHECK(fn, args) \
+  {                                                  \
+    SANITIZER_FN_NAME(fn)                            \
+    args;                                            \
+  }
 
 
 #ifdef __cplusplus
@@ -67,12 +85,13 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
                            uint32_t gpu_patch_type, size_t record_size,
                            gpu_patch_buffer_t *gpu_patch_buffer_host,
                            gpu_patch_buffer_t *gpu_patch_buffer_device,
-                           Sanitizer_StreamHandle priority_stream);
+                           Sanitizer_StreamHandle priority_stream, CUcontext context);
 }
 extern "C" {
 static void sanitizer_kernel_analyze(int32_t persistent_id,
                                      uint64_t correlation_id, uint32_t cubin_id,
                                      uint32_t mod_id,
+                                     CUcontext context,
                                      Sanitizer_StreamHandle priority_stream,
                                      Sanitizer_StreamHandle kernel_stream,
                                      bool analysis_end);
@@ -115,10 +134,11 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
                            uint32_t gpu_patch_type, size_t record_size,
                            gpu_patch_buffer_t *gpu_patch_buffer_host,
                            gpu_patch_buffer_t *gpu_patch_buffer_device,
-                           Sanitizer_StreamHandle priority_stream);
+                           Sanitizer_StreamHandle priority_stream,CUcontext context);
 static void sanitizer_kernel_analyze(int32_t persistent_id,
                                      uint64_t correlation_id, uint32_t cubin_id,
                                      uint32_t mod_id,
+                                     CUcontext context,
                                      Sanitizer_StreamHandle priority_stream,
                                      Sanitizer_StreamHandle kernel_stream,
                                      bool analysis_end);

@@ -83,7 +83,8 @@ sanitizer_buffer_produce
  uint32_t type,
  size_t num_records,
  atomic_uint *balance,
- bool async
+ bool async,
+ CUcontext context
 );
 
 
