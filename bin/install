@@ -1,0 +1,46 @@
+#!/usr/bin/bash
+if [ $# -lt 1 ];then
+    echo "usage: bin/build.sh target_install_path"
+    exit -1
+fi
+
+source_path=$(pwd)
+# CUDA_PATH=/usr/local/cuda
+install_path=$1 
+
+if [ ! -d $install_path ]
+then
+    echo "target install path not exist, will create it"
+    mkdir -p $install_path
+fi
+
+
+echo "Your source code path is " 
+echo $source_path
+echo "Your install path is " 
+echo $install_path
+echo "Your LD_LIBRARY_PATH is " 
+echo $LD_LIBRARY_PATH
+
+echo "GPUTRIGGER-> install dependencies"
+cd $install_path
+git clone --depth 1 https://github.com/spack/spack.git
+export SPACK_ROOT=$(pwd)/spack
+source ${SPACK_ROOT}/share/spack/setup-env.sh
+spack install mbedtls@3.1.0 libelf
+spack load mbedtls@3.1.0 libelf
+
+cd $source_path
+if [ ! -d build ];then
+    mkdir build
+fi
+cd build
+rm -rf ./*
+cmake ..
+make -j
+
+cp ./libgputrigger.so $install_path
+
+echo "GPUTRIGGER-> install done"
+echo "GPUTRIGGER-> GL HF"
+
