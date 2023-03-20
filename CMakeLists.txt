@@ -55,7 +55,6 @@ endif()
 if(NOT LIBELF_LIBRARIES_PATH)
     message(FATAL_ERROR "You need to specify libelf library path. ")
 endif()
-message(INFO "==========")
 message(STATUS ${LIBELF_INCLUDE_DIRS})
 message(STATUS ${LIBELF_LIBRARIES_PATH})
 message(STATUS ${MBEDTLS_INCLUDE_DIRS})
@@ -72,7 +71,7 @@ set(SANITIZER_PATH ${CUDAToolkit_TARGET_DIR}/compute-sanitizer)
 # @findhao: drcctprof can not handle pthread
 # set(THREADS_PREFER_PTHREAD_FLAG ON)
 #@findhao: for debug
-set(redshow_path /home/yzhao62/redshow)
+# set(redshow_path /home/yzhao62/redshow)
 
 if(NOT redshow_path)
     message(FATAL_ERROR "You need to specify redshow library path. ")
@@ -82,7 +81,7 @@ if(NOT gpu_patch_path)
     message(INFO "Use default gpu_patch_path:" ${CMAKE_CURRENT_LIST_DIR}/gpu-patch/ )
     set(gpu_patch_path ${CMAKE_CURRENT_LIST_DIR}/gpupunk/gpu-patch/)
     #for debug
-    set(gpu_patch_path /home/yzhao62/gpupunk/gpu-patch/)
+    # set(gpu_patch_path /home/yzhao62/gpupunk/gpu-patch/)
 endif()
 
 
@@ -126,10 +125,7 @@ target_link_libraries(gputrigger PUBLIC
         -lmbedcrypto
         -lmbedtls
         ${redshow}
-        # -lredshow
-        # -L${redshow_path}/lib64/
         -lelf
-        
         -lsanitizer-public
         -lcuda
         -lcudart
