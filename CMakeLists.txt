@@ -102,7 +102,7 @@ find_library(redshow redshow HINTS ${redshow_path}/build)
 # find_library(redshow ${redshow_path}/build)
 
 
-set(redshow ${redshow_path}/install/lib/libredshow.a)
+set(redshow ${redshow_path}/lib/libredshow.a)
 
 # message("redshow is ${redshow}")
 
