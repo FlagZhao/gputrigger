@@ -49,11 +49,11 @@ include(FindLibElf.cmake)
 include(FindMbedTLS.cmake)
 
 if(NOT MBEDTLS_LIBRARY_PATH)
-    message(FATAL_ERROR "You need to specify mbedtls library path. ")
+    message(FATAL_ERROR "Error when finding mbedtls library path.")
 endif()
 
 if(NOT LIBELF_LIBRARIES_PATH)
-    message(FATAL_ERROR "You need to specify libelf library path. ")
+    message(FATAL_ERROR "Error when finding libelf library path.")
 endif()
 message(STATUS ${LIBELF_INCLUDE_DIRS})
 message(STATUS ${LIBELF_LIBRARIES_PATH})
@@ -74,7 +74,7 @@ set(SANITIZER_PATH ${CUDAToolkit_TARGET_DIR}/compute-sanitizer)
 # set(redshow_path /home/yzhao62/redshow)
 
 if(NOT redshow_path)
-    message(FATAL_ERROR "You need to specify redshow library path. ")
+    message(FATAL_ERROR "Error when finding redshow path.")
 endif()
 
 if(NOT gpu_patch_path)
