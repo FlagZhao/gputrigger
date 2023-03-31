@@ -1416,8 +1416,6 @@ static void sanitizer_subscribe_callback(void *userdata,
           (void *)function_pc, function_size, flat_blocksize, flat_gridsize);
       REDSHOW_FN(redshow_kernel_launch_begin, (sanitizer_thread_id_local, persistent_id,
                                                correlation_id, flat_gridsize, flat_blocksize, ld->functionName, function_pc));
-      // //  @FindHao TODO: flush now? for now.
-      // sanitizer_device_flush_now();
       // thread-safe
       // Create a high priority stream for the context at the first time
       // TODO(Keren): change stream->hstream
@@ -1451,6 +1449,7 @@ static void sanitizer_subscribe_callback(void *userdata,
       REDSHOW_FN(redshow_kernel_launch_end, (sanitizer_thread_id_local, persistent_id,
                                              correlation_id, flat_gridsize, flat_blocksize, ld->functionName, function_pc));
       PRINT("Sanitizer-> kernel %s done\n", ld->functionName);
+      sanitizer_device_flush_now();
     }
   } else if (domain == SANITIZER_CB_DOMAIN_MEMCPY) {
     Sanitizer_MemcpyData *md = (Sanitizer_MemcpyData *)cbdata;
@@ -1573,6 +1572,10 @@ void sanitizer_device_flush() {
   }
 }
 
+/**
+ * @brief This function will be captured by drcctprof_client and do its analysis.
+ * For now, it is only used for memory access analysis(false sharing).
+ */
 void sanitizer_device_flush_now() {
   if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PAGE_SHARING) {
     REDSHOW_FN(redshow_flush_now, (sanitizer_thread_id_local));
