@@ -67,7 +67,8 @@
 // type declarations
 //******************************************************************************
 
-typedef struct sanitizer_buffer_t {
+typedef struct sanitizer_buffer_t
+{
   s_element_t next;
 
   uint32_t thread_id;
@@ -84,7 +85,8 @@ typedef struct sanitizer_buffer_t {
 //******************************************************************************
 
 void sanitizer_buffer_process(
-    sanitizer_buffer_t *b) {
+    sanitizer_buffer_t *b)
+{
   uint32_t thread_id = b->thread_id;
   uint32_t cubin_id = b->cubin_id;
   uint32_t mod_id = b->mod_id;
@@ -97,7 +99,8 @@ void sanitizer_buffer_process(
 
 sanitizer_buffer_t *
 sanitizer_buffer_alloc(
-    sanitizer_buffer_channel_t *channel) {
+    sanitizer_buffer_channel_t *channel)
+{
   return channel_item_alloc(channel, sanitizer_buffer_t);
 }
 
@@ -111,8 +114,8 @@ void sanitizer_buffer_produce(
     uint32_t type,
     size_t num_records,
     atomic_uint *balance,
-    bool async,
-    CUcontext context) {
+    CUcontext context)
+{
   b->thread_id = thread_id;
   b->cubin_id = cubin_id;
   b->mod_id = mod_id;
@@ -122,45 +125,54 @@ void sanitizer_buffer_produce(
 
   // Increase balance
   atomic_fetch_add(balance, 1);
-  if (b->gpu_patch_buffer == NULL) {
+  if (b->gpu_patch_buffer == NULL)
+  {
     // Spin waiting
-    while (atomic_load(balance) >= sanitizer_buffer_pool_size_get()) {
-      if (!async) {
-        b->gpu_patch_buffer = NULL;
-        return;
-      }
+    while (atomic_load(balance) >= sanitizer_buffer_pool_size_get())
+    {
+      b->gpu_patch_buffer = NULL;
+      return;
       sanitizer_process_signal();
     }
-    if (type == GPU_PATCH_TYPE_DEFAULT) {
+    if (type == GPU_PATCH_TYPE_DEFAULT)
+    {
       size_t num_records = sanitizer_gpu_patch_record_num_get();
-      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost,(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t)));
-      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost,(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_t)));
+      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t)));
+      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_t)));
       // sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_t));
       // sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t));
       PRINT("Sanitizer-> Allocate gpu_patch_record_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_t));
-    } else if (type == GPU_PATCH_TYPE_ADDRESS_CCT) {
+    }
+    else if (type == GPU_PATCH_TYPE_ADDRESS_CCT)
+    {
       size_t num_records = sanitizer_gpu_patch_record_num_get();
-      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost,(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t)));
-      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost,(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_addr_cct_t)));
+      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t)));
+      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_addr_cct_t)));
       // sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t));
       // sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_addr_cct_t));
       PRINT("Sanitizer-> Allocate gpu_patch_record_addr_cct_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_addr_cct_t));
-    } else if (type == GPU_PATCH_TYPE_ADDRESS_PATCH) {
+    }
+    else if (type == GPU_PATCH_TYPE_ADDRESS_PATCH)
+    {
       size_t num_records = sanitizer_gpu_patch_record_num_get();
-      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost,(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t)));
-      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost,(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_address_t)));
+      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t)));
+      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_address_t)));
       // sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t));
       // sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_record_address_t));
       PRINT("Sanitizer-> Allocate gpu_patch_record_address_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_address_t));
-    } else if (type == GPU_PATCH_TYPE_ADDRESS_ANALYSIS) {
+    }
+    else if (type == GPU_PATCH_TYPE_ADDRESS_ANALYSIS)
+    {
       size_t num_records = sanitizer_gpu_analysis_record_num_get();
-      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost,(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t)));
-      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost,(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_analysis_address_t)));
+      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t)));
+      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_analysis_address_t)));
       // sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t));
       // sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_analysis_address_t));
       PRINT("Sanitizer-> Allocate gpu_patch_analysis_address_t buffer size %lu\n", num_records * sizeof(gpu_patch_analysis_address_t));
     }
-  } else {
+  }
+  else
+  {
     PRINT("Sanitizer-> Reuse buffer\n");
   }
 }
@@ -168,13 +180,15 @@ void sanitizer_buffer_produce(
 void sanitizer_buffer_free(
     sanitizer_buffer_channel_t *channel,
     sanitizer_buffer_t *b,
-    atomic_uint *balance) {
+    atomic_uint *balance)
+{
   channel_item_free(channel, b);
   atomic_fetch_add(balance, -1);
 }
 
 gpu_patch_buffer_t *
 sanitizer_buffer_entry_gpu_patch_buffer_get(
-    sanitizer_buffer_t *b) {
+    sanitizer_buffer_t *b)
+{
   return b->gpu_patch_buffer;
 }

@@ -71,7 +71,6 @@ sanitizer_buffer_channel_produce
  uint64_t host_op_id,
  uint32_t type,
  size_t num_records,
- bool async,
  CUcontext context
 );
 
