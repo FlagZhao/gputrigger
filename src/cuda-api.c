@@ -558,7 +558,6 @@ void cuda_load_callback(
   size_t i;
   size_t used = 0;
   char file_name[PATH_MAX];
-  used += sprintf(&file_name[used], "%s", hpcrun_files_output_directory());
   used += sprintf(&file_name[used], "%s", "/cubins/");
   mkdir(file_name, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
   for (i = 0; i < hash_len; ++i) {
@@ -585,7 +584,7 @@ void cuda_load_callback(
     // } else {
     //   hpctoolkit_module_id = module->id;
     // }
-    hpcrun_loadmap_unlock();
+    // hpcrun_loadmap_unlock();
     cubin_id_map_entry_t *entry = cubin_id_map_lookup(cubin_id);
     if (entry == NULL) {
       Elf_SymbolVector *vector = computeCubinFunctionOffsets(cubin, cubin_size);

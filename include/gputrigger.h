@@ -4,14 +4,16 @@
 #include <sanitizer.h>
 #include <sanitizer_result.h>
 #include <stdint.h>
-//#include <atomic>
-#include "cubin-hash-map.h"
-#include "gpu-patch.h"
-#include "stdbool.h"
+// #include <atomic>
 #include <stdio.h>
 #include <vector_types.h>
+
+#include "cubin-hash-map.h"
+#include "cuda-api.h"
 #include "debug-info.h"
+#include "gpu-patch.h"
 #include "mem.h"
+#include "stdbool.h"
 
 #ifdef STANDALONE
 #include <redshow.h>
@@ -32,6 +34,28 @@
 #define SANITIZER_FN(fn, args) \
   static SanitizerResult(*SANITIZER_FN_NAME(fn)) args
 
+typedef void (*sanitizer_error_callback_t)(const char *type, const char *fn,
+                                           const char *error_string);
+
+static void sanitizer_error_callback_dummy(const char *type, const char *fn,
+                                           const char *error_string);
+
+static void sanitizer_error_callback_dummy(const char *type, const char *fn, const char *error_string) {
+  PRINT("Sanitizer-> %s: function %s failed with error %s\n", type, fn,
+        error_string);
+  exit(-1);
+}
+
+static sanitizer_error_callback_t sanitizer_error_callback =
+    sanitizer_error_callback_dummy;
+  
+static void sanitizer_error_report(SanitizerResult error, const char *fn) {
+  const char *error_string;
+  SANITIZER_FN_NAME(sanitizerGetResultString)
+  (error, &error_string);
+  sanitizer_error_callback("Sanitizer result error", fn, error_string);
+}
+
 #define GPUTRIGGER_SANITIZER_CALL(fn, args)              \
   {                                                      \
     SanitizerResult status = SANITIZER_FN_NAME(fn) args; \
@@ -45,7 +69,6 @@
     SANITIZER_FN_NAME(fn)                            \
     args;                                            \
   }
-
 
 #ifdef __cplusplus
 #define EXTERNC extern "C"
@@ -134,7 +157,7 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
                            uint32_t gpu_patch_type, size_t record_size,
                            gpu_patch_buffer_t *gpu_patch_buffer_host,
                            gpu_patch_buffer_t *gpu_patch_buffer_device,
-                           Sanitizer_StreamHandle priority_stream,CUcontext context);
+                           Sanitizer_StreamHandle priority_stream, CUcontext context);
 static void sanitizer_kernel_analyze(int32_t persistent_id,
                                      uint64_t correlation_id, uint32_t cubin_id,
                                      uint32_t mod_id,
@@ -168,7 +191,6 @@ EXTERNC size_t sanitizer_gpu_patch_record_num_get();
 
 EXTERNC size_t sanitizer_gpu_analysis_record_num_get();
 
-
 EXTERNC int sanitizer_buffer_pool_size_get();
 
 EXTERNC void sanitizer_stop_flag_set();
@@ -183,7 +205,6 @@ EXTERNC void sanitizer_device_shutdown();
 EXTERNC void sanitizer_buffer_config(int gpu_patch_record_num,
                                      int buffer_pool_size);
 
-
 #define GPUTRIGGER_GPUTRIGGER_H
 
-#endif // GPUTRIGGER_GPUTRIGGER_H
+#endif  // GPUTRIGGER_GPUTRIGGER_H

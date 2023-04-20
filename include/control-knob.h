@@ -37,6 +37,6 @@ char *control_knob_value_get(control_category c);
 
 int control_knob_value_get_int(control_category c);
 
-#define PRINT_KNOBS(__VA_ARGS__...) fprintf(stderr, __VA_ARGS__)
+#define PRINT_KNOBS(...) fprintf(stderr, __VA_ARGS__)
 
 #endif

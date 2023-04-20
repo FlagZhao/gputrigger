@@ -11,17 +11,27 @@
 #define EXTERNC
 #endif
 
+#define FOREACH_REDSHOW_ANALYSIS_TYPE(macro)\
+  macro(REDSHOW_ANALYSIS_UNKNOWN)\
+  macro(REDSHOW_ANALYSIS_SPATIAL_REDUNDANCY)\
+  macro(REDSHOW_ANALYSIS_TEMPORAL_REDUNDANCY)\
+  macro(REDSHOW_ANALYSIS_VALUE_PATTERN)\
+  macro(REDSHOW_ANALYSIS_DATA_FLOW)\
+  macro(REDSHOW_ANALYSIS_MEMORY_ACCESS)\
+  macro(REDSHOW_ANALYSIS_CCT)\
+  macro(REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS)\
+  macro(REDSHOW_ANALYSIS_PAGE_SHARING)
+
+#define GENERATE_ENUM(ENUM) ENUM,
+#define GENERATE_STRING(STRING) #STRING,
+
 typedef enum redshow_analysis_type {
-  REDSHOW_ANALYSIS_UNKNOWN = 0,
-  REDSHOW_ANALYSIS_SPATIAL_REDUNDANCY = 1,
-  REDSHOW_ANALYSIS_TEMPORAL_REDUNDANCY = 2,
-  REDSHOW_ANALYSIS_VALUE_PATTERN = 3,
-  REDSHOW_ANALYSIS_DATA_FLOW = 4,
-  REDSHOW_ANALYSIS_MEMORY_ACCESS = 5,
-  REDSHOW_ANALYSIS_CCT = 6,
-  REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS = 7,
-  REDSHOW_ANALYSIS_PAGE_SHARING = 8,
+  FOREACH_REDSHOW_ANALYSIS_TYPE(GENERATE_ENUM)
 } redshow_analysis_type_t;
+
+static const char * redshow_analysis_type_str[] = {
+  FOREACH_REDSHOW_ANALYSIS_TYPE(GENERATE_STRING)
+};
 
 typedef enum redshow_analysis_config_type {
   REDSHOW_ANALYSIS_READ_TRACE_IGNORE = 0,
@@ -403,7 +413,7 @@ EXTERNC redshow_result_t redshow_tool_dtoh_register_dummy(redshow_tool_dtoh_func
  * @return EXTERNC
  */
 EXTERNC redshow_result_t redshow_kernel_launch_begin_dummy(uint32_t cpu_thread, int32_t kernel_id,
-                                                           uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, char *function_name, uint64_t function_pc);
+                                                           uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, const char *function_name, uint64_t function_pc);
 
 /**
  * @brief when a kernel ends
@@ -414,7 +424,7 @@ EXTERNC redshow_result_t redshow_kernel_launch_begin_dummy(uint32_t cpu_thread, 
  * @return EXTERNC
  */
 EXTERNC redshow_result_t redshow_kernel_launch_end_dummy(uint32_t cpu_thread, int32_t kernel_id,
-                                                         uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, char *function_name, uint64_t function_pc);
+                                                         uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, const char *function_name, uint64_t function_pc);
 
 /**
  * @brief Mark the begin of the current analysis region
@@ -460,9 +470,9 @@ EXTERNC redshow_result_t redshow_flush_dummy();
  *
  * @param cpu_thread
  * @return reshow_result_t
- *
- * @thread-safe YES
  */
 EXTERNC redshow_result_t redshow_flush_now_dummy(uint32_t cpu_thread);
+
+
 
 #endif  // REDSHOW_H

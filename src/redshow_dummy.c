@@ -108,11 +108,11 @@ redshow_tool_dtoh_register_dummy(redshow_tool_dtoh_func func) { return REDSHOW_S
 __attribute__((noinline))
 redshow_result_t
 redshow_kernel_launch_begin_dummy(uint32_t cpu_thread, int32_t kernel_id,
-                                  uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, char *function_name, uint64_t function_pc) { return REDSHOW_SUCCESS; }
+                                  uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, const char *function_name, uint64_t function_pc) { return REDSHOW_SUCCESS; }
 __attribute__((noinline))
 redshow_result_t
 redshow_kernel_launch_end_dummy(uint32_t cpu_thread, int32_t kernel_id,
-                                uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, char *function_name, uint64_t function_pc) { return REDSHOW_SUCCESS; }
+                                uint64_t host_op_id, int32_t flat_gridsize, int32_t flat_blocksize, const char *function_name, uint64_t function_pc) { return REDSHOW_SUCCESS; }
 __attribute__((noinline))
 redshow_result_t
 redshow_analysis_begin_dummy() { return REDSHOW_SUCCESS; }

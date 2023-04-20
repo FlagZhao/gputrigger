@@ -102,11 +102,5 @@ sanitizer_buffer_entry_gpu_patch_buffer_get
  sanitizer_buffer_t *b
 );
 
-typedef struct {
-    uint32_t cubin_id;
-    uint32_t unknown_field[1];
-    uint32_t mod_id;
-} hpctoolkit_cumod_st_t;
-
 
 #endif
