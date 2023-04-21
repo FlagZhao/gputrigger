@@ -1,17 +1,16 @@
 #ifndef GPUPUNK_CONTROL_KNOB_H
 #define GPUPUNK_CONTROL_KNOB_H
 
-#define FORALL_KNOBS(macro)  \
-  macro(GPUPUNK_SANITIZER_GPU_PATCH_RECORD_NUM)  \
-  macro(GPUPUNK_SANITIZER_BUFFER_POOL_SIZE)  \
-  macro(GPUPUNK_SANITIZER_APPROX_LEVEL)  \
-  macro(GPUPUNK_SANITIZER_DEFAULT_TYPE)  \
-  macro(GPUPUNK_SANITIZER_KERNEL_SAMPLING_FREQUENCY)  \
-  macro(GPUPUNK_SANITIZER_BLOCK_SAMPLEING_FREQUENCY)  \
-  macro(GPUPUNK_SANITIZER_WHITELIST)  \
-  macro(GPUPUNK_SANITIZER_BLACKLIST)  \
-  macro(GPUPUNK_SANTTIZER_KERNEL_SPEEDER)\
-
+#define FORALL_KNOBS(macro)                                              \
+  macro(GPUPUNK_SANITIZER_GPU_PATCH_RECORD_NUM)                          \
+      macro(GPUPUNK_SANITIZER_BUFFER_POOL_SIZE)                          \
+          macro(GPUPUNK_SANITIZER_APPROX_LEVEL)                          \
+              macro(GPUPUNK_SANITIZER_DEFAULT_TYPE)                      \
+                  macro(GPUPUNK_SANITIZER_KERNEL_SAMPLING_FREQUENCY)     \
+                      macro(GPUPUNK_SANITIZER_BLOCK_SAMPLEING_FREQUENCY) \
+                          macro(GPUPUNK_SANITIZER_WHITELIST)             \
+                              macro(GPUPUNK_SANITIZER_BLACKLIST)         \
+                                  macro(GPUPUNK_PREPROCESSOR_ENABLE)
 
 typedef enum {
 #define DEFINE_ENUM_KNOBS(knob_name)  \

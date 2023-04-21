@@ -124,6 +124,9 @@ static Sanitizer_SubscriberHandle sanitizer_subscriber_handle;
 static size_t sanitizer_gpu_patch_record_num = 0;
 static size_t sanitizer_gpu_patch_record_size = 0;
 static uint32_t sanitizer_gpu_patch_type = GPU_PATCH_TYPE_DEFAULT;
+static const char *GPUPUNK_PREPROCESSOR_PATH;
+static const char *GPUPATCH_PATH;
+static char env_FATBIN_PATCH[PATH_MAX];
 // Configurable variables
 static int sanitizer_buffer_pool_size = 0;
 static int sanitizer_pc_views = 0;
@@ -161,7 +164,6 @@ static sanitizer_thread_t sanitizer_thread;
 static const int DEFAULT_GPU_PATCH_RECORD_NUM = 1280 * 1024;
 static const int DEFAULT_BUFFER_POOL_SIZE = 500;
 // static const int DEFAULT_DEVICE_BUFFER_SIZE = 1024 * 1024 * 8;
-
 
 void sanitizer_buffer_config(int gpu_patch_record_num, int buffer_pool_size) {
   sanitizer_gpu_patch_record_num = gpu_patch_record_num;
@@ -236,30 +238,6 @@ struct kernel_list *kernel_whitelist_search(const char *kernel_name) {
 
 static void sanitizer_load_callback(CUcontext context, CUmodule module,
                                     const void *cubin, size_t cubin_size) {
-  //    check patch file existence and permission
-  const char *env_PATCH_PATH = getenv("GPUPATCH_PATH");
-  PRINT("The GPUPATCH_PATH is %s\n", env_PATCH_PATH);
-  // Create file name
-  char env_FATBIN_PATCH[PATH_MAX];
-  size_t used = 0;
-  //    @todo fix path
-  if (env_PATCH_PATH) {
-    used += sprintf(&env_FATBIN_PATCH[0], "%s", env_PATCH_PATH);
-    if (access(env_FATBIN_PATCH, R_OK) != 0) {
-      PRINT_ERR("ERROR: Can not access GPUPATCH_PATH\n");
-      exit(-1);
-    }
-    // TODO: @FindHao, add more modes
-    used += sprintf(&env_FATBIN_PATCH[used], "%s", "/lib/gpu-patch-addr-cct.fatbin");
-    if (access(env_FATBIN_PATCH, R_OK) != 0) {
-      PRINT_ERR("ERROR: Can not access FATBIN_PATCH %s\n", env_FATBIN_PATCH);
-      exit(-1);
-    }
-  } else {
-    PRINT_ERR("ERROR: no GPUPATCH_PATH env specified.");
-    exit(-1);
-  }
-
   hpctoolkit_cumod_st_t *cumod = (hpctoolkit_cumod_st_t *)module;
   uint32_t cubin_id = cumod->cubin_id;
   uint32_t mod_id = cumod->mod_id;
@@ -277,7 +255,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   // Create file name
   char file_name[PATH_MAX];
   size_t i;
-  used = 0;
+  size_t used = 0;
   //    @todo fix path
   used += sprintf(&file_name[used], "%s", "./");
   used += sprintf(&file_name[used], "%s", "/cubins/");
@@ -761,7 +739,18 @@ static void buffer_analyze(int32_t persistent_id, uint64_t correlation_id,
   sanitizer_buffer_channel_push(sanitizer_buffer, gpu_patch_type);
 }
 
-//
+/**
+ * @brief This is the GPU preprocessor(An analysis kernel) which is used to analyze the GPU trace.
+ *
+ * @param persistent_id
+ * @param correlation_id
+ * @param cubin_id
+ * @param mod_id
+ * @param context
+ * @param priority_stream
+ * @param kernel_stream
+ * @param analysis_end
+ */
 static void sanitizer_kernel_analyze(int32_t persistent_id,
                                      uint64_t correlation_id, uint32_t cubin_id,
                                      uint32_t mod_id,
@@ -869,69 +858,48 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
   }
 }
 
-//******
-// The preprocessor kernel launch for analysis
-//******
-static void gpu_preprocessor_launch(CUcontext context) {
+static void
+sanitizer_module_load(CUcontext context) {
+  CUmodule analysis_module = NULL;
+  CUfunction analysis_function = NULL;
+  cuda_module_load(&analysis_module, GPUPUNK_PREPROCESSOR_PATH);
+  cuda_module_function_get(&analysis_function, analysis_module, "gpu_analysis_interval_merge");
 
+  sanitizer_context_map_analysis_function_update(context, analysis_function);
+
+  PRINT("Sanitizer-> context %p load function gpu_analysis_interval_merge %p\n", context, analysis_function);
 }
 
-//******************************************************************************
-// asynchronous process thread
-//******************************************************************************
+/**
+ * @brief Launch the analysis kernel which will be used to analyze the trace data
+ *
+ * @param context
+ */
+static void
+sanitizer_kernel_launch(
+    CUcontext context) {
+  sanitizer_context_map_entry_t *entry = sanitizer_context_map_init(context);
 
-void sanitizer_process_signal() {
-  pthread_cond_t *cond = &(sanitizer_thread.cond);
-  pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
+  // Get raw priority stream and function
+  CUfunction analysis_function = sanitizer_context_map_entry_analysis_function_get(entry);
+  CUstream kernel_stream = sanitizer_context_map_entry_kernel_stream_get(entry);
 
-  pthread_mutex_lock(mutex);
-
-  atomic_store(&sanitizer_process_awake_flag, true);
-
-  pthread_cond_signal(cond);
-
-  pthread_mutex_unlock(mutex);
-}
-
-static void sanitizer_process_await() {
-  pthread_cond_t *cond = &(sanitizer_thread.cond);
-  pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
-
-  pthread_mutex_lock(mutex);
-
-  while (!atomic_load(&sanitizer_process_awake_flag)) {
-    pthread_cond_wait(cond, mutex);
+  // First time get function
+  if (analysis_function == NULL) {
+    sanitizer_module_load(context);
   }
 
-  atomic_store(&sanitizer_process_awake_flag, false);
+  // Launch analysis function
+  if (analysis_function != NULL) {
+    void *args[] = {(void *)&sanitizer_gpu_patch_buffer_device, (void *)&sanitizer_gpu_patch_buffer_addr_read_device,
+                    (void *)&sanitizer_gpu_patch_buffer_addr_write_device};
 
-  pthread_mutex_unlock(mutex);
-}
+    cuda_kernel_launch(analysis_function, enable_gpupunk_preprocessor, 1, 1,
+                       GPU_PATCH_ANALYSIS_THREADS, 1, 1, 0, kernel_stream, args);
 
-static void *sanitizer_process_thread(void *arg) {
-  pthread_cond_t *cond = &(sanitizer_thread.cond);
-  pthread_mutex_t *mutex = &(sanitizer_thread.mutex);
-  while (!atomic_load(&sanitizer_process_stop_flag)) {
-    REDSHOW_FN(redshow_analysis_begin, ());
-    sanitizer_buffer_channel_set_consume();
-    REDSHOW_FN(redshow_analysis_end, ());
-    sanitizer_process_await();
+    PRINT("Sanitizer-> context %p launch function gpu_analysis_interval_merge %p <%u, %u>\n",
+          context, analysis_function, enable_gpupunk_preprocessor, GPU_PATCH_ANALYSIS_THREADS);
   }
-  // Last records
-  sanitizer_buffer_channel_set_consume();
-
-  // Create thread data
-  //    thread_data_t *td = NULL;
-  //    int id = sanitizer_thread_id_self;
-  //    hpcrun_threadMgr_non_compact_data_get(id, NULL, &td);
-  //    hpcrun_set_thread_data(td);
-
-  atomic_fetch_add(&sanitizer_process_thread_counter, -1);
-
-  pthread_mutex_destroy(mutex);
-  pthread_cond_destroy(cond);
-
-  return NULL;
 }
 
 size_t sanitizer_gpu_patch_record_num_get() {
@@ -948,6 +916,19 @@ void sanitizer_stop_flag_set() { sanitizer_stop_flag = true; }
 
 void sanitizer_stop_flag_unset() { sanitizer_stop_flag = false; }
 
+/**
+ * @brief When kernel launch ends, this function is called to keep copying data from GPU to CPU. Then do the buffer_analyze.
+ *
+ * @param persistent_id
+ * @param correlation_id
+ * @param context
+ * @param module
+ * @param function
+ * @param priority_stream: the stream that sanitizer used to copy data from GPU to CPU
+ * @param kernel_stream: the stream that kernel is launched on
+ * @param grid_size: the grid size of the instrumented kernel
+ * @param block_size: the block size of the instrumented kernel. They are used to compute the number of threads of this kernel.
+ */
 static void sanitizer_kernel_launch_sync(int32_t persistent_id,
                                          uint64_t correlation_id,
                                          CUcontext context, CUmodule module,
@@ -1279,7 +1260,7 @@ static void sanitizer_subscribe_callback(void *userdata,
                                        block_size, kernel_sampling);
     } else if (cbid == SANITIZER_CBID_LAUNCH_AFTER_SYSCALL_SETUP) {
       if (enable_gpupunk_preprocessor != 0 && kernel_sampling) {
-        gpu_preprocessor_launch(ld->context);
+        sanitizer_kernel_launch(ld->context);
       }
     } else if (cbid == SANITIZER_CBID_LAUNCH_END) {
       if (kernel_sampling) {
@@ -1471,6 +1452,41 @@ int sanitizer_callbacks_subscribe() {
   int buffer_pool_size = control_knob_value_get_int(GPUPUNK_SANITIZER_BUFFER_POOL_SIZE);
   if (buffer_pool_size == 0)
     buffer_pool_size = DEFAULT_BUFFER_POOL_SIZE;
+
+  //    check patch file existence and permission
+  GPUPATCH_PATH = getenv("GPUPATCH_PATH");
+  PRINT("The GPUPATCH_PATH is %s\n", GPUPATCH_PATH);
+  // Create file name
+  size_t used = 0;
+  //    @todo fix path
+  if (GPUPATCH_PATH) {
+    used += sprintf(&env_FATBIN_PATCH[0], "%s", GPUPATCH_PATH);
+    if (access(env_FATBIN_PATCH, R_OK) != 0) {
+      PRINT_ERR("ERROR: Can not access GPUPATCH_PATH\n");
+      exit(-1);
+    }
+    used += sprintf(&env_FATBIN_PATCH[used], "%s", "/lib/gpu-patch-addr-cct.fatbin");
+    if (access(env_FATBIN_PATCH, R_OK) != 0) {
+      PRINT_ERR("ERROR: Can not access FATBIN_PATCH %s\n", env_FATBIN_PATCH);
+      exit(-1);
+    }
+  } else {
+    PRINT_ERR("ERROR: no GPUPATCH_PATH env specified.");
+    exit(-1);
+  }
+  // detect if enable the GPU preprocessor
+  // enable_gpupunk_preprocessor = control_knob_value_get_int(GPUPUNK_PREPROCESSOR_ENABLE);
+  //@TODO: for now, just enable it by default
+  enable_gpupunk_preprocessor = 1;
+  if (enable_gpupunk_preprocessor != 0) {
+    PRINT("GPUTRIGGER -> GPU preprocessor is enabled.\n");
+    used = 0;
+    char tmp_preprocessor_path[PATH_MAX];
+    used += sprintf(&tmp_preprocessor_path[0], "%s", GPUPATCH_PATH);
+    used += sprintf(&tmp_preprocessor_path[used], "%s", "/lib/gpu-analysis.fatbin");
+    GPUPUNK_PREPROCESSOR_PATH = tmp_preprocessor_path;
+  }
+  // TODO: need to check the compatibility of preprocessor and analysis mode.
 
   sanitizer_buffer_config(gpu_patch_record_num, buffer_pool_size);
   kernel_whitelist_init();
