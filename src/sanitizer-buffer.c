@@ -47,7 +47,7 @@
 
 #define UNIT_TEST 0
 
-#define DEBUG 0
+// #define DEBUG 0
 
 //******************************************************************************
 // local includes
@@ -162,6 +162,15 @@ void sanitizer_buffer_produce(
       PRINT("Sanitizer-> Allocate gpu_patch_record_address_t buffer size %lu\n", num_records * sizeof(gpu_patch_record_address_t));
     }
     else if (type == GPU_PATCH_TYPE_ADDRESS_ANALYSIS)
+    {
+      size_t num_records = sanitizer_gpu_analysis_record_num_get();
+      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t)));
+      GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_analysis_address_t)));
+      // sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t));
+      // sanitizerAllocHost(context,(void **)&b->gpu_patch_buffer->records, num_records * sizeof(gpu_patch_analysis_address_t));
+      PRINT("Sanitizer-> Allocate gpu_patch_analysis_address_t buffer size %lu\n", num_records * sizeof(gpu_patch_analysis_address_t));
+    }
+    else if (type == GPU_PATCH_TYPE_REDUNDANT_WRITE)
     {
       size_t num_records = sanitizer_gpu_analysis_record_num_get();
       GPUTRIGGER_SANITIZER_CALL(sanitizerAllocHost, (context, (void **)&b->gpu_patch_buffer, sizeof(gpu_patch_buffer_t)));

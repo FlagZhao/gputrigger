@@ -3,20 +3,32 @@ project(gputrigger)
 
 include(CheckLanguage)
 check_language(CUDA)
-
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 enable_language(CUDA)
+enable_language(CXX)
 #@findhao: for debug
 # if(NOT CMAKE_BUILD_TYPE)
 #     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
 #             "Default build type: RelWithDebInfo" FORCE)
 # endif()
 
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
-    "Default build type: RelWithDebInfo" FORCE)
+option(ENABLE_DEBUG "Enable debug build configuration" OFF)
+
+if(ENABLE_DEBUG)
+    set(CMAKE_BUILD_TYPE "Debug")
+    add_compile_options(-g -O0)
+    add_definitions(-DDEBUG)
+    message(STATUS "Debug build enabled")
+else()
+    if(NOT CMAKE_BUILD_TYPE)
+        set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
+                "Default build type: RelWithDebInfo" FORCE)
+    endif()
 endif()
 
-
+# add this flag for header file specification
+set(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES "")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # SET(CMAKE_CXX_FLAGS "-O0")
 # SET(CMAKE_C_FLAGS "-O0")
 # SET(CMAKE_C_FLAGS "-O0")
@@ -77,6 +89,8 @@ if(NOT redshow_path)
     message(FATAL_ERROR "Error when finding redshow path.")
 endif()
 
+message("Using redshow path:" ${redshow_path})
+
 if(NOT gpu_patch_path)
     message(INFO "Use default gpu_patch_path:" ${CMAKE_CURRENT_LIST_DIR}/gpu-patch/ )
     set(gpu_patch_path ${CMAKE_CURRENT_LIST_DIR}/gpupunk/gpu-patch/)
@@ -87,7 +101,8 @@ endif()
 
 include_directories(${SANITIZER_PATH}/include/ 
                 ${CUDAToolkit_TARGET_DIR}/include/ 
-                ${redshow_path}/include/ ${redshow_path}/include/common 
+                ${redshow_path}/include/ 
+                ${redshow_path}/include/common/ 
                 ${CMAKE_CURRENT_LIST_DIR}/include/
                 ${CMAKE_CURRENT_LIST_DIR}/src/
                 ${gpu_patch_path}/include/
@@ -97,7 +112,7 @@ include_directories(${SANITIZER_PATH}/include/
                 
 message(INFO ${SANITIZER_PATH} ${CUDAToolkit_NVCC_EXECUTABLE})
 
-find_library(redshow redshow HINTS ${redshow_path}/build)
+find_library(redshow redshow HINTS ${redshow_path}/lib)
 
 # find_library(redshow ${redshow_path}/build)
 
@@ -107,7 +122,9 @@ set(redshow ${redshow_path}/lib/libredshow.a)
 # message("redshow is ${redshow}")
 
 
-add_link_options(-L${SANITIZER_PATH}     -L${MBEDTLS_LIBRARY_PATH}       -L${MBEDCRYPTO_LIBRARY_PATH}      -L${LIBELF_LIBRARIES_PATH}      -L${redshow_path}/install/lib -fPIC -shared -lstdc++)
+add_link_options(-L${SANITIZER_PATH}     -L${MBEDTLS_LIBRARY_PATH}       -L${MBEDCRYPTO_LIBRARY_PATH}      -L${LIBELF_LIBRARIES_PATH}      -L${redshow_path}/install/lib -fPIC -shared)
+
+
 # add_custom_target(gputrigger_patch.fatbin ALL ${CUDAToolkit_NVCC_EXECUTABLE} -o gputrigger_patch.fatbin ${CMAKE_CUDA_FLAGS} --fatbin --keep-device-functions -Xptxas --compile-as-tools-patch -g  -I${SANITIZER_PATH}/include/ -I${CUDAToolkit_TARGET_DIR}/include/ -c ${CMAKE_CURRENT_LIST_DIR}/gpu-patch.cu )
 # set_property(TARGET gputrigger_patch.fatbin PROPERTY CUDA_ARCHITECTURES "70;75;80;86")
 
@@ -122,15 +139,17 @@ message("${redshow_path}")
 
 target_link_libraries(gputrigger PUBLIC
 
-        -lmbedcrypto
-        -lmbedtls
+        mbedcrypto
+        mbedtls
         ${redshow}
-        -lelf
-        -lsanitizer-public
-        -lcuda
-        -lcudart
+        elf
+        sanitizer-public
+        cuda
+        cudart
         -L${CUDAToolkit_TARGET_DIR}/lib64
-        -ldl
+        dl
+        stdc++
+        supc++
         )
 
 

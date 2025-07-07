@@ -15,13 +15,13 @@
 #include "mem.h"
 #include "stdbool.h"
 
-#ifdef STANDALONE
+// #ifdef STANDALONE
 #include <redshow.h>
 #define REDSHOW_FN_NAME(f) f
-#else
-#include <redshow_dummy.h>
-#define REDSHOW_FN_NAME(f) f##_dummy
-#endif
+// #else
+// #include <redshow_dummy.h>
+// #define REDSHOW_FN_NAME(f) f##_dummy
+// #endif
 
 #define REDSHOW_FN(f, args) \
   {                         \

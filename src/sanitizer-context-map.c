@@ -149,7 +149,7 @@ sanitizer_context_map_lookup_internal(CUcontext context) {
   }
 
   //    TMSG(DEFER_CTXT, "context map lookup: context=0x%lx (record %p)", context, result);
-  printf("context map lookup: context=0x%lx (record %p)", (long unsigned int)context, result);
+  printf("context map lookup: context=0x%lx (record %p)\n", (long unsigned int)context, result);
   return result;
 }
 

@@ -20,7 +20,9 @@
   macro(REDSHOW_ANALYSIS_MEMORY_ACCESS)\
   macro(REDSHOW_ANALYSIS_CCT)\
   macro(REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS)\
-  macro(REDSHOW_ANALYSIS_PAGE_SHARING)
+  macro(REDSHOW_ANALYSIS_PAGE_SHARING)\
+  macro(REDSHOW_ANALYSIS_REDUNDANT_WRITE)\
+  macro(REDSHOW_ANALYSIS_RACE_DETECTION)
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -41,13 +43,16 @@ typedef enum redshow_analysis_config_type {
 typedef enum redshow_access_type {
   REDSHOW_ACCESS_UNKNOWN = 0,
   REDSHOW_ACCESS_READ = 1,
-  REDSHOW_ACCESS_WRITE = 2
+  REDSHOW_ACCESS_WRITE = 2,
+  REDSHOW_ACCESS_ATOMIC = 3
 } redshow_access_type_t;
 
 typedef enum redshow_data_type {
   REDSHOW_DATA_UNKNOWN = 0,
-  REDSHOW_DATA_FLOAT = 1,
-  REDSHOW_DATA_INT = 2
+  REDSHOW_DATA_HALF = 1,
+  REDSHOW_DATA_FLOAT = 2,
+  REDSHOW_DATA_DOUBLE = 3,
+  REDSHOW_DATA_INT = 4,
 } redshow_data_type_t;
 
 typedef enum redshow_memory_type {
