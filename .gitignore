@@ -273,3 +273,4 @@ core.*
 core
 .vscode/
 build_debug/
+.cache/
