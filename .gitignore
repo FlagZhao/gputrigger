@@ -274,3 +274,4 @@ core
 .vscode/
 build_debug/
 .cache/
+.idea/
