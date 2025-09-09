@@ -149,11 +149,11 @@ static int32_t env_block_sampling_frequency;
 static int sanitizer_gpu_analysis_record_num = 0;
 static size_t sanitizer_gpu_analysis_record_size = 0;
 static uint32_t enable_gpupunk_preprocessor = 0;
-static uint32_t sanitizer_gpu_analysis_type = GPU_PATCH_TYPE_REDUNDANT_WRITE;
+static uint32_t sanitizer_gpu_analysis_type = GPU_PATCH_TYPE_PC_DEPENDENCY;
 static bool sanitizer_read_trace_ignore = false;
 static bool sanitizer_data_flow_hash = false;
 // default type
-static redshow_analysis_type_t GPUPUNK_ANALYSIS_MODE = REDSHOW_ANALYSIS_REDUNDANT_WRITE;
+static redshow_analysis_type_t GPUPUNK_ANALYSIS_MODE = REDSHOW_ANALYSIS_PC_DEPENDENCY;
 typedef struct
 {
   pthread_t thread;
@@ -303,7 +303,7 @@ static void sanitizer_load_callback(CUcontext context, CUmodule module,
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions, (SANITIZER_INSTRUCTION_BLOCK_ENTER, module, "sanitizer_block_enter_callback"));
   GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions, (SANITIZER_INSTRUCTION_BLOCK_EXIT, module, "sanitizer_block_exit_callback"));
 
-  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_REDUNDANT_WRITE) {
+  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_REDUNDANT_WRITE || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PC_DEPENDENCY) {
     GPUTRIGGER_SANITIZER_CALL(sanitizerPatchInstructions,
                               (SANITIZER_INSTRUCTION_GLOBAL_MEMORY_ACCESS, module,
                                "sanitizer_global_memory_access_callback"));
@@ -804,7 +804,7 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
         PRINT("Sanitizer-> write analysis address\n");
         buffer_analyze(
             persistent_id, correlation_id, cubin_id, mod_id,
-            GPU_PATCH_TYPE_REDUNDANT_WRITE, sanitizer_gpu_analysis_record_size,
+            GPU_PATCH_TYPE_PC_DEPENDENCY, sanitizer_gpu_analysis_record_size,
             sanitizer_gpu_patch_buffer_host,
             sanitizer_gpu_patch_buffer_device, priority_stream, context);
       }
@@ -846,7 +846,7 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
     PRINT("Sanitizer-> trace collect\n");
     buffer_analyze(
         persistent_id, correlation_id, cubin_id, mod_id,
-        GPU_PATCH_TYPE_REDUNDANT_WRITE, sanitizer_gpu_analysis_record_size,
+        GPU_PATCH_TYPE_PC_DEPENDENCY, sanitizer_gpu_analysis_record_size,
         sanitizer_gpu_patch_buffer_host,
         sanitizer_gpu_patch_buffer_device, priority_stream, context);
 
@@ -865,7 +865,7 @@ static void sanitizer_kernel_analyze(int32_t persistent_id,
     PRINT("Sanitizer-> read analysis address\n");
     buffer_analyze(
         persistent_id, correlation_id, cubin_id, mod_id,
-        GPU_PATCH_TYPE_REDUNDANT_WRITE, sanitizer_gpu_analysis_record_size,
+        GPU_PATCH_TYPE_PC_DEPENDENCY, sanitizer_gpu_analysis_record_size,
         sanitizer_gpu_patch_buffer_host,
         sanitizer_gpu_patch_buffer_device, priority_stream, context);
 
@@ -1454,6 +1454,17 @@ void sanitizer_redundant_write_analysis_enable() {
   sanitizer_gpu_analysis_record_size = sizeof(gpu_patch_record_addr_cct_t);
 }
 
+void sanitizer_redundant_pc_dependency_enable() {
+  REDSHOW_FN(redshow_analysis_enable, (REDSHOW_ANALYSIS_PC_DEPENDENCY));
+  char dir_name[PATH_MAX];
+  output_dir_config(dir_name, "/dependency/");
+  REDSHOW_FN(redshow_output_dir_config, (REDSHOW_ANALYSIS_PC_DEPENDENCY, dir_name));
+  sanitizer_gpu_patch_record_size = sizeof(gpu_patch_record_addr_cct_t);
+  sanitizer_gpu_patch_type = GPU_PATCH_TYPE_PC_DEPENDENCY;
+  sanitizer_gpu_analysis_record_size = sizeof(gpu_patch_record_addr_cct_t);
+}
+
+
 void sanitizer_device_flush() {
   if (sanitizer_stop_flag) {
     sanitizer_stop_flag_unset();
@@ -1467,7 +1478,7 @@ void sanitizer_device_flush() {
  * For now, it is only used for memory access analysis(false sharing).
  */
 void sanitizer_device_flush_now() {
-  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PAGE_SHARING || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_REDUNDANT_WRITE) {
+  if (GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_CCT_MEMORY_ACCESS || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PAGE_SHARING || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_REDUNDANT_WRITE || GPUPUNK_ANALYSIS_MODE == REDSHOW_ANALYSIS_PC_DEPENDENCY) {
     REDSHOW_FN(redshow_flush_now, (sanitizer_thread_id_local));
   }
 }
@@ -1512,6 +1523,9 @@ int sanitizer_callbacks_subscribe() {
       break;
     case REDSHOW_ANALYSIS_REDUNDANT_WRITE:
       sanitizer_redundant_write_analysis_enable();
+      break;
+    case REDSHOW_ANALYSIS_PC_DEPENDENCY:
+      sanitizer_redundant_pc_dependency_enable();
       break;
     default:
       sanitizer_cct_analysis_enable();
